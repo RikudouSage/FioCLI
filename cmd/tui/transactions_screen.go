@@ -16,8 +16,10 @@ type transactionsScreen struct {
 	list               list.Model
 	dashboard          dashboard
 	reloadTransactions TransactionReloader
+	loadTransactions   TransactionReloader
 	ctx                context.Context
 	reloading          bool
+	createPayment      DomesticPaymentCreator
 }
 
 func newTransactionsScreen(account model.Account, transactions []model.Transaction) *transactionsScreen {
@@ -32,6 +34,7 @@ func newTransactionsScreenWithReload(account model.Account, transactions []model
 	transactionList.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "details")),
+			key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "payment")),
 			key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "account")),
 			key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reload")),
 		}
@@ -59,22 +62,10 @@ func (s *transactionsScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigation) {
 		switch keyMsg.String() {
 		case "a":
 			return s, nil, navigation{destination: showAccountPicker}
+		case "p":
+			return s, nil, navigation{destination: showCreatePayment}
 		case "r":
-			if s.reloading {
-				return s, nil, navigation{}
-			}
-			if s.reloadTransactions == nil {
-				return s, s.list.NewStatusMessage("Reload is unavailable"), navigation{}
-			}
-			s.reloading = true
-			s.dashboard.activity = "⟳ Syncing transactions…"
-			spinner := s.list.StartSpinner()
-			accountNumber := s.dashboard.account.AccountNumber
-			reload := func() tea.Msg {
-				transactions, err := s.reloadTransactions(s.ctx, accountNumber)
-				return transactionReloadResult{transactions: transactions, err: err}
-			}
-			return s, tea.Batch(spinner, reload), navigation{}
+			return s, s.refresh(), navigation{}
 		case "enter":
 			if item, ok := s.list.SelectedItem().(transactionItem); ok {
 				return s, nil, navigation{destination: showTransactionDetail, transaction: item.transaction}
@@ -85,6 +76,46 @@ func (s *transactionsScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigation) {
 	var cmd tea.Cmd
 	s.list, cmd = s.list.Update(msg)
 	return s, cmd, navigation{}
+}
+
+// refresh synchronizes the account and returns the updated locally stored
+// transactions. It is shared by the manual shortcut and payment submission.
+func (s *transactionsScreen) refresh() tea.Cmd {
+	if s.reloading {
+		return nil
+	}
+	if s.reloadTransactions == nil {
+		return s.list.NewStatusMessage("Reload is unavailable")
+	}
+	s.reloading = true
+	s.dashboard.activity = "⟳ Syncing transactions…"
+	spinner := s.list.StartSpinner()
+	accountNumber := s.dashboard.account.AccountNumber
+	reload := func() tea.Msg {
+		transactions, err := s.reloadTransactions(s.ctx, accountNumber)
+		return transactionReloadResult{transactions: transactions, err: err}
+	}
+	return tea.Batch(spinner, reload)
+}
+
+// refreshLocal reloads only the transactions already stored in the local
+// database. Unlike refresh, it never contacts Fio or synchronizes new data.
+func (s *transactionsScreen) refreshLocal() tea.Cmd {
+	if s.reloading {
+		return nil
+	}
+	if s.loadTransactions == nil {
+		return s.list.NewStatusMessage("Local refresh is unavailable")
+	}
+	s.reloading = true
+	s.dashboard.activity = "⟳ Refreshing local transactions…"
+	spinner := s.list.StartSpinner()
+	accountNumber := s.dashboard.account.AccountNumber
+	load := func() tea.Msg {
+		transactions, err := s.loadTransactions(s.ctx, accountNumber)
+		return transactionReloadResult{transactions: transactions, err: err}
+	}
+	return tea.Batch(spinner, load)
 }
 
 type transactionReloadResult struct {

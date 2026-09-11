@@ -6,6 +6,7 @@ import (
 	"io"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"go.chrastecky.dev/fio-api/fio/dto"
 	"go.chrastecky.dev/fio-client/fioclient/model"
 )
 
@@ -19,9 +20,11 @@ const (
 type Services struct {
 	SwitchAccount      AccountSwitcher
 	ReloadTransactions TransactionReloader
+	LoadTransactions   TransactionReloader
 	RemoveAccount      AccountRemover
 	RegisterAccount    AccountRegistrar
 	UnlockDatabase     DatabaseUnlocker
+	CreatePayment      DomesticPaymentCreator
 }
 
 // Run starts the interactive account UI. When locked is true it starts on the
@@ -65,6 +68,7 @@ const (
 	showAccountPicker
 	showRemoveAccountConfirmation
 	showAddAccount
+	showCreatePayment
 	selectAccount
 	accountRemoved
 	accountsUpdated
@@ -104,6 +108,11 @@ type AccountRegistrar func(context.Context, string) ([]model.Account, model.Acco
 // state to display after it has been opened.
 type DatabaseUnlocker func(context.Context, string) (AccountState, error)
 
+// DomesticPaymentCreator submits a domestic payment from the specified source
+// account. The UI deliberately keeps this operation behind a callback so the
+// screen remains independent of account storage and the Fio client.
+type DomesticPaymentCreator func(context.Context, string, dto.DomesticTransaction) error
+
 type tuiModel struct {
 	current            screen
 	transactions       *transactionsScreen
@@ -113,8 +122,10 @@ type tuiModel struct {
 	accounts           []model.Account
 	switchAccount      AccountSwitcher
 	reloadTransactions TransactionReloader
+	loadTransactions   TransactionReloader
 	removeAccount      AccountRemover
 	registerAccount    AccountRegistrar
+	createPayment      DomesticPaymentCreator
 }
 
 func newModel(account model.Account, txs []model.Transaction) tuiModel {
@@ -132,7 +143,9 @@ func newModelWithServices(ctx context.Context, account model.Account, txs []mode
 func newModelWithState(ctx context.Context, state AccountState, services Services, locked bool) tuiModel {
 	account, txs, accounts := state.Account, state.Transactions, state.Accounts
 	transactions := newTransactionsScreenWithReload(account, txs, services.ReloadTransactions, ctx)
-	model := tuiModel{current: transactions, transactions: transactions, width: defaultWidth, height: defaultHeight, ctx: ctx, accounts: accounts, switchAccount: services.SwitchAccount, reloadTransactions: services.ReloadTransactions, removeAccount: services.RemoveAccount, registerAccount: services.RegisterAccount}
+	transactions.createPayment = services.CreatePayment
+	transactions.loadTransactions = services.LoadTransactions
+	model := tuiModel{current: transactions, transactions: transactions, width: defaultWidth, height: defaultHeight, ctx: ctx, accounts: accounts, switchAccount: services.SwitchAccount, reloadTransactions: services.ReloadTransactions, loadTransactions: services.LoadTransactions, removeAccount: services.RemoveAccount, registerAccount: services.RegisterAccount, createPayment: services.CreatePayment}
 	if locked {
 		model.current = newDatabaseUnlockScreen(services.UnlockDatabase, ctx, defaultWidth, defaultHeight)
 		return model
@@ -179,13 +192,20 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showAddAccount:
 		m.current = newAddAccountScreen(m.current, m.registerAccount, m.ctx, m.width, m.height)
 		cmd = m.current.Init()
+	case showCreatePayment:
+		m.current = newCreatePaymentScreen(m.transactions, m.transactions.dashboard.account, m.createPayment, m.ctx, m.width, m.height)
+		cmd = m.current.Init()
 	case selectAccount:
 		m.transactions = newTransactionsScreenWithReload(navigation.account, navigation.transactions, m.reloadTransactions, m.ctx)
+		m.transactions.createPayment = m.createPayment
+		m.transactions.loadTransactions = m.loadTransactions
 		m.transactions.Resize(m.width, m.height)
 		m.current = m.transactions
 	case accountRemoved:
 		m.accounts = navigation.accounts
 		m.transactions = newTransactionsScreenWithReload(navigation.account, navigation.transactions, m.reloadTransactions, m.ctx)
+		m.transactions.createPayment = m.createPayment
+		m.transactions.loadTransactions = m.loadTransactions
 		m.transactions.Resize(m.width, m.height)
 		m.current = m.transactions
 	case accountsUpdated:
@@ -193,6 +213,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case databaseUnlocked:
 		m.accounts = navigation.accounts
 		m.transactions = newTransactionsScreenWithReload(navigation.account, navigation.transactions, m.reloadTransactions, m.ctx)
+		m.transactions.createPayment = m.createPayment
+		m.transactions.loadTransactions = m.loadTransactions
 		m.transactions.Resize(m.width, m.height)
 		if navigation.account.AccountNumber == "" {
 			m.current = newAccountPickerScreen(m.transactions, m.accounts, "", m.switchAccount, m.removeAccount, m.registerAccount, m.ctx, m.width, m.height)

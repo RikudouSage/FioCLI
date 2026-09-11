@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.chrastecky.dev/fio-api/fio/dto"
 	"go.chrastecky.dev/fio-client/fioclient/model"
 	"go.chrastecky.dev/fio/fiocli/cmd/helper"
 	"go.chrastecky.dev/fio/fiocli/cmd/tui"
@@ -77,6 +78,13 @@ var uiCmd = &cobra.Command{
 			}
 			return selected.Transactions(ctx)
 		}
+		loadTransactions := func(ctx context.Context, accountNumber string) ([]model.Transaction, error) {
+			selected, err := client.Account(ctx, accountNumber)
+			if err != nil {
+				return nil, fmt.Errorf("failed getting account: %w", err)
+			}
+			return selected.Transactions(ctx)
+		}
 		removeAccount := func(ctx context.Context, accountNumber string) (tui.AccountState, error) {
 			if err := client.RemoveAccount(ctx, accountNumber); err != nil {
 				return tui.AccountState{}, err
@@ -124,6 +132,16 @@ var uiCmd = &cobra.Command{
 			}
 			return accounts, added, nil
 		}
+		createPayment := func(ctx context.Context, accountNumber string, payment dto.DomesticTransaction) error {
+			account, err := client.Account(ctx, accountNumber)
+			if err != nil {
+				return fmt.Errorf("failed getting account: %w", err)
+			}
+			if _, err := account.CreateDomesticPayment(ctx, payment); err != nil {
+				return fmt.Errorf("failed creating payment: %w", err)
+			}
+			return nil
+		}
 
 		unlockDatabase := func(ctx context.Context, password string) (tui.AccountState, error) {
 			// Recreate the client: it may have been opened with an empty or incorrect key.
@@ -135,7 +153,7 @@ var uiCmd = &cobra.Command{
 			}
 			return loadState(ctx)
 		}
-		services := tui.Services{SwitchAccount: switchAccount, ReloadTransactions: reloadTransactions, RemoveAccount: removeAccount, RegisterAccount: registerAccount, UnlockDatabase: unlockDatabase}
+		services := tui.Services{SwitchAccount: switchAccount, ReloadTransactions: reloadTransactions, LoadTransactions: loadTransactions, RemoveAccount: removeAccount, RegisterAccount: registerAccount, UnlockDatabase: unlockDatabase, CreatePayment: createPayment}
 		if err := tui.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), state, services, locked); err != nil {
 			return fmt.Errorf("failed rendering transactions: %w", err)
 		}
