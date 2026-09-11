@@ -41,6 +41,8 @@ func newTransactionsScreenWithReload(account model.Account, transactions []model
 
 func (s *transactionsScreen) Init() tea.Cmd { return nil }
 
+func (s *transactionsScreen) acceptsTextInput() bool { return s.list.SettingFilter() }
+
 func (s *transactionsScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigation) {
 	if result, ok := msg.(transactionReloadResult); ok {
 		s.reloading = false

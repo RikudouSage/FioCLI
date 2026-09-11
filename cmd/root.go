@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,9 @@ var client fioclient.Client
 var rootCmd = &cobra.Command{
 	Use:   "fio",
 	Short: "tool for managing your Fio bank account from CLI",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		initializeDb(cmd.Name() != "ui", cmd.ErrOrStderr())
+	},
 }
 
 func Execute() {
@@ -64,17 +68,25 @@ func initConfig() {
 
 	_ = viper.ReadInConfig()
 
+	initializeDb(false, os.Stderr)
+}
+
+func initializeDb(requireDB bool, stderr io.Writer) {
+	if client != nil {
+		return
+	}
+
 	dbPath := viper.GetString("db")
 	password := viper.GetString("encryption-password")
 	if dbPath == "" {
 		cfgDir, err := os.UserConfigDir()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, fmt.Errorf("failed getting user config directory: %w", err))
+			fmt.Fprintln(stderr, fmt.Errorf("failed getting user config directory: %w", err))
 			os.Exit(1)
 		}
 		dbPath = filepath.Join(cfgDir, "fio-cli", "fio-cli.db")
 	}
-	if password == "" {
+	if password == "" && requireDB {
 		fmt.Fprintf(os.Stderr, "Please specify the password using the FIO_ENCRYPTION_PASSWORD env var.\n")
 		os.Exit(1)
 	}
@@ -85,15 +97,16 @@ func initConfig() {
 			os.Exit(1)
 		}
 	}
+	var err error
 	client, err = fioclient.New(
 		fioclient.WithDatabase(dbPath, types.NewStringSecretKey(password)),
 	)
-	if err != nil {
+	if err != nil && requireDB {
 		fmt.Fprintln(os.Stderr, fmt.Errorf("failed creating fio client: %w", err))
 		os.Exit(1)
 	}
 
-	if viper.GetString("current-account") == "" {
+	if viper.GetString("current-account") == "" && client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		all, err := client.Accounts(ctx)

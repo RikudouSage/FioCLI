@@ -20,24 +20,36 @@ var uiCmd = &cobra.Command{
 		"tui",
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		account, err := client.Account(cmd.Context(), viper.GetString("current-account"))
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("failed fetching current account: %w", err)
-		}
-
-		var accountData model.Account
-		var transactions []model.Transaction
-		if account != nil {
-			accountData = account.AccountData()
-			transactions, err = account.Transactions(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("failed getting transactions: %w", err)
+		loadState := func(ctx context.Context) (tui.AccountState, error) {
+			if client == nil {
+				return tui.AccountState{}, errors.New("fio client is unavailable")
 			}
+			accounts, err := client.Accounts(ctx)
+			if err != nil {
+				return tui.AccountState{}, fmt.Errorf("failed listing accounts: %w", err)
+			}
+			state := tui.AccountState{Accounts: accounts}
+			account, err := client.Account(ctx, viper.GetString("current-account"))
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return tui.AccountState{}, fmt.Errorf("failed fetching current account: %w", err)
+			}
+			if account == nil {
+				return state, nil
+			}
+			state.Account = account.AccountData()
+			state.Transactions, err = account.Transactions(ctx)
+			if err != nil {
+				return tui.AccountState{}, fmt.Errorf("failed getting transactions: %w", err)
+			}
+			return state, nil
 		}
 
-		accounts, err := client.Accounts(cmd.Context())
-		if err != nil {
-			return fmt.Errorf("failed listing accounts: %w", err)
+		locked := viper.GetString("encryption-password") == ""
+		var state tui.AccountState
+		if !locked {
+			var err error
+			state, err = loadState(cmd.Context())
+			locked = err != nil
 		}
 
 		switchAccount := func(ctx context.Context, accountNumber string) (model.Account, []model.Transaction, error) {
@@ -113,7 +125,18 @@ var uiCmd = &cobra.Command{
 			return accounts, added, nil
 		}
 
-		if err := tui.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), accountData, transactions, accounts, switchAccount, reloadTransactions, removeAccount, registerAccount); err != nil {
+		unlockDatabase := func(ctx context.Context, password string) (tui.AccountState, error) {
+			// Recreate the client: it may have been opened with an empty or incorrect key.
+			client = nil
+			viper.Set("encryption-password", password)
+			initializeDb(false, cmd.ErrOrStderr())
+			if client == nil {
+				return tui.AccountState{}, errors.New("failed creating fio client")
+			}
+			return loadState(ctx)
+		}
+		services := tui.Services{SwitchAccount: switchAccount, ReloadTransactions: reloadTransactions, RemoveAccount: removeAccount, RegisterAccount: registerAccount, UnlockDatabase: unlockDatabase}
+		if err := tui.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), state, services, locked); err != nil {
 			return fmt.Errorf("failed rendering transactions: %w", err)
 		}
 		return nil

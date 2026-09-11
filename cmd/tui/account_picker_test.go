@@ -137,7 +137,7 @@ func TestAccountPickerAddOpensMaskedAPIKeyFormAndRegisters(t *testing.T) {
 	}
 }
 
-func TestQExitsGloballyFromAPIKeyForm(t *testing.T) {
+func TestQIsHandledByAPIKeyForm(t *testing.T) {
 	account := model.Account{AccountNumber: "first-account"}
 	m := newModelWithServices(context.Background(), account, nil, []model.Account{account}, nil, nil, nil, nil)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
@@ -145,12 +145,15 @@ func TestQExitsGloballyFromAPIKeyForm(t *testing.T) {
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	m = updated.(tuiModel)
 
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	if cmd == nil {
-		t.Fatal("q did not return a quit command")
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	m = updated.(tuiModel)
+	if cmd != nil {
+		if _, ok := cmd().(tea.QuitMsg); ok {
+			t.Fatal("q quit while entering the API key")
+		}
 	}
-	if _, ok := cmd().(tea.QuitMsg); !ok {
-		t.Fatal("q did not exit from the API key form")
+	if key := m.current.(*addAccountScreen).form.input.Value(); key != "q" {
+		t.Fatalf("API key input is %q, want q", key)
 	}
 }
 

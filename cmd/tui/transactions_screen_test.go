@@ -64,3 +64,18 @@ func TestReloadShortcutIsIgnoredWhileFiltering(t *testing.T) {
 		t.Fatal("r triggered a reload while editing the filter")
 	}
 }
+
+func TestQDoesNotQuitWhileFiltering(t *testing.T) {
+	m := newModel(model.Account{AccountNumber: "account"}, nil)
+	m.transactions.list.SetFilterState(list.Filtering)
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	m = updated.(tuiModel)
+	if cmd != nil {
+		if _, ok := cmd().(tea.QuitMsg); ok {
+			t.Fatal("q quit while editing the transaction filter")
+		}
+	}
+	if filter := m.transactions.list.FilterValue(); filter != "q" {
+		t.Fatalf("filter is %q, want q", filter)
+	}
+}

@@ -14,9 +14,20 @@ const (
 	defaultHeight = 24
 )
 
-// Run starts the interactive account UI.
-func Run(ctx context.Context, input io.Reader, output io.Writer, account model.Account, txs []model.Transaction, accounts []model.Account, switchAccount AccountSwitcher, reloadTransactions TransactionReloader, removeAccount AccountRemover, registerAccount AccountRegistrar) error {
-	program := tea.NewProgram(newModelWithServices(ctx, account, txs, accounts, switchAccount, reloadTransactions, removeAccount, registerAccount), tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output), tea.WithAltScreen())
+// Services contains the operations that back the interactive UI. Keeping these
+// behind callbacks lets the UI start before the encrypted database is opened.
+type Services struct {
+	SwitchAccount      AccountSwitcher
+	ReloadTransactions TransactionReloader
+	RemoveAccount      AccountRemover
+	RegisterAccount    AccountRegistrar
+	UnlockDatabase     DatabaseUnlocker
+}
+
+// Run starts the interactive account UI. When locked is true it starts on the
+// database unlock screen instead of querying account data.
+func Run(ctx context.Context, input io.Reader, output io.Writer, state AccountState, services Services, locked bool) error {
+	program := tea.NewProgram(newModelWithState(ctx, state, services, locked), tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output), tea.WithAltScreen())
 	_, err := program.Run()
 	return err
 }
@@ -28,6 +39,13 @@ type screen interface {
 	Update(tea.Msg) (screen, tea.Cmd, navigation)
 	View() string
 	Resize(width, height int)
+}
+
+// textInputScreen reports whether the current screen is actively receiving
+// typed text. The application shell must not reserve single-key shortcuts in
+// that state.
+type textInputScreen interface {
+	acceptsTextInput() bool
 }
 
 type navigation struct {
@@ -50,6 +68,7 @@ const (
 	selectAccount
 	accountRemoved
 	accountsUpdated
+	databaseUnlocked
 )
 
 // AccountSwitcher loads an account and its transactions for the supplied
@@ -80,6 +99,10 @@ type AccountRemover func(context.Context, string) (AccountState, error)
 // account list and the account that should be active.
 type AccountRegistrar func(context.Context, string) ([]model.Account, model.Account, error)
 
+// DatabaseUnlocker opens the database using password and returns the initial
+// state to display after it has been opened.
+type DatabaseUnlocker func(context.Context, string) (AccountState, error)
+
 type tuiModel struct {
 	current            screen
 	transactions       *transactionsScreen
@@ -102,10 +125,19 @@ func newModelWithAccounts(ctx context.Context, account model.Account, txs []mode
 }
 
 func newModelWithServices(ctx context.Context, account model.Account, txs []model.Transaction, accounts []model.Account, switchAccount AccountSwitcher, reloadTransactions TransactionReloader, removeAccount AccountRemover, registerAccount AccountRegistrar) tuiModel {
-	transactions := newTransactionsScreenWithReload(account, txs, reloadTransactions, ctx)
-	model := tuiModel{current: transactions, transactions: transactions, width: defaultWidth, height: defaultHeight, ctx: ctx, accounts: accounts, switchAccount: switchAccount, reloadTransactions: reloadTransactions, removeAccount: removeAccount, registerAccount: registerAccount}
+	return newModelWithState(ctx, AccountState{Account: account, Transactions: txs, Accounts: accounts}, Services{SwitchAccount: switchAccount, ReloadTransactions: reloadTransactions, RemoveAccount: removeAccount, RegisterAccount: registerAccount}, false)
+}
+
+func newModelWithState(ctx context.Context, state AccountState, services Services, locked bool) tuiModel {
+	account, txs, accounts := state.Account, state.Transactions, state.Accounts
+	transactions := newTransactionsScreenWithReload(account, txs, services.ReloadTransactions, ctx)
+	model := tuiModel{current: transactions, transactions: transactions, width: defaultWidth, height: defaultHeight, ctx: ctx, accounts: accounts, switchAccount: services.SwitchAccount, reloadTransactions: services.ReloadTransactions, removeAccount: services.RemoveAccount, registerAccount: services.RegisterAccount}
+	if locked {
+		model.current = newDatabaseUnlockScreen(services.UnlockDatabase, ctx, defaultWidth, defaultHeight)
+		return model
+	}
 	if account.AccountNumber == "" {
-		model.current = newAccountPickerScreen(transactions, accounts, "", switchAccount, removeAccount, registerAccount, ctx, defaultWidth, defaultHeight)
+		model.current = newAccountPickerScreen(transactions, accounts, "", services.SwitchAccount, services.RemoveAccount, services.RegisterAccount, ctx, defaultWidth, defaultHeight)
 	}
 	return model
 }
@@ -116,6 +148,9 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "q", "ctrl+c":
+			if input, ok := m.current.(textInputScreen); ok && input.acceptsTextInput() {
+				break
+			}
 			return m, tea.Quit
 		}
 	}
@@ -152,6 +187,15 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.current = m.transactions
 	case accountsUpdated:
 		m.accounts = navigation.accounts
+	case databaseUnlocked:
+		m.accounts = navigation.accounts
+		m.transactions = newTransactionsScreenWithReload(navigation.account, navigation.transactions, m.reloadTransactions, m.ctx)
+		m.transactions.Resize(m.width, m.height)
+		if navigation.account.AccountNumber == "" {
+			m.current = newAccountPickerScreen(m.transactions, m.accounts, "", m.switchAccount, m.removeAccount, m.registerAccount, m.ctx, m.width, m.height)
+		} else {
+			m.current = m.transactions
+		}
 	}
 	return m, cmd
 }

@@ -101,6 +101,8 @@ func newAddAccountScreen(previous screen, registerAccount AccountRegistrar, ctx 
 
 func (s *addAccountScreen) Init() tea.Cmd { return s.form.Init() }
 
+func (s *addAccountScreen) acceptsTextInput() bool { return !s.form.loading }
+
 func (s *addAccountScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigation) {
 	if result, ok := msg.(accountRegistrationResult); ok {
 		s.form.loading = false
