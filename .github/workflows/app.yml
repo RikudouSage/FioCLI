@@ -29,6 +29,7 @@ jobs:
       - name: Build app
         run: |
           nix develop --command make
+          nix develop --command patchelf --remove-rpath fio
           mkdir -p dist
           cp --dereference fio dist/fio-linux-amd64
           chmod 0755 dist/fio-linux-amd64
