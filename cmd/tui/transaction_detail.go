@@ -33,6 +33,8 @@ func (s *transactionDetailScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigati
 		switch keyMsg.String() {
 		case "q", "ctrl+c":
 			return s, nil, navigation{destination: quit}
+		case "a":
+			return s, nil, navigation{destination: showAccountPicker}
 		case "esc", "backspace", "left", "h":
 			return s, nil, navigation{destination: showTransactions}
 		}
@@ -51,7 +53,7 @@ func (s *transactionDetailScreen) Resize(width, height int) {
 
 func (s *transactionDetailScreen) View() string {
 	header := titleStyle.Render("‹  Transaction details")
-	help := helpStyle.Render("↑/k ↓/j scroll • esc back • q quit")
+	help := helpStyle.Render("↑/k ↓/j scroll • a account • esc back • q quit")
 	card := cardStyle.Width(max(s.width-cardStyle.GetHorizontalFrameSize(), 1)).Render(s.viewport.View())
 	return header + "\n\n" + card + "\n" + help
 }

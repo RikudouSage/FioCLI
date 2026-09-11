@@ -12,6 +12,7 @@ import (
 type dashboard struct {
 	account      model.Account
 	transactions []model.Transaction
+	activity     string
 }
 
 func (d dashboard) View(width int) string {
@@ -40,6 +41,9 @@ func (d dashboard) View(width int) string {
 	}
 
 	heading := titleStyle.Render("Fio Account") + "  " + helpStyle.Render(accountNumber)
+	if d.activity != "" {
+		heading += "  " + lipgloss.NewStyle().Foreground(pendingColor).Render(d.activity)
+	}
 	subtitle := "Recent activity"
 	if d.account.IBAN != "" {
 		subtitle = formatIBAN(d.account.IBAN)
