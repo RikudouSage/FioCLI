@@ -103,7 +103,11 @@ func newModelWithAccounts(ctx context.Context, account model.Account, txs []mode
 
 func newModelWithServices(ctx context.Context, account model.Account, txs []model.Transaction, accounts []model.Account, switchAccount AccountSwitcher, reloadTransactions TransactionReloader, removeAccount AccountRemover, registerAccount AccountRegistrar) tuiModel {
 	transactions := newTransactionsScreenWithReload(account, txs, reloadTransactions, ctx)
-	return tuiModel{current: transactions, transactions: transactions, width: defaultWidth, height: defaultHeight, ctx: ctx, accounts: accounts, switchAccount: switchAccount, reloadTransactions: reloadTransactions, removeAccount: removeAccount, registerAccount: registerAccount}
+	model := tuiModel{current: transactions, transactions: transactions, width: defaultWidth, height: defaultHeight, ctx: ctx, accounts: accounts, switchAccount: switchAccount, reloadTransactions: reloadTransactions, removeAccount: removeAccount, registerAccount: registerAccount}
+	if account.AccountNumber == "" {
+		model.current = newAccountPickerScreen(transactions, accounts, "", switchAccount, removeAccount, registerAccount, ctx, defaultWidth, defaultHeight)
+	}
+	return model
 }
 
 func (m tuiModel) Init() tea.Cmd { return m.current.Init() }

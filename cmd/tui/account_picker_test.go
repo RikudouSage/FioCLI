@@ -9,6 +9,24 @@ import (
 	"go.chrastecky.dev/fio-client/fioclient/model"
 )
 
+func TestMissingAccountStartsWithPickerAndEmptyTransactions(t *testing.T) {
+	account := model.Account{AccountNumber: "available-account", BankCode: "2010", Currency: "CZK"}
+	m := newModelWithServices(context.Background(), model.Account{}, nil, []model.Account{account}, nil, nil, nil, nil)
+
+	if _, ok := m.current.(*accountPickerScreen); !ok {
+		t.Fatal("missing account did not open the account picker")
+	}
+	if len(m.transactions.list.Items()) != 0 {
+		t.Fatalf("missing account loaded transactions: %d", len(m.transactions.list.Items()))
+	}
+	if view := m.transactions.View(); !strings.Contains(view, "No account") {
+		t.Fatalf("empty transactions screen does not show the missing account state:\n%s", view)
+	}
+	if view := m.View(); !strings.Contains(view, "available-account/2010") {
+		t.Fatalf("account picker does not show available account:\n%s", view)
+	}
+}
+
 func TestAccountShortcutOpensPickerAndEscapeReturns(t *testing.T) {
 	account := model.Account{AccountNumber: "first-account", BankCode: "2010", Currency: "CZK"}
 	m := newModelWithAccounts(context.Background(), account, nil, []model.Account{account}, nil)
