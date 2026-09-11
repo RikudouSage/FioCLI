@@ -77,3 +77,14 @@ func TestQIsHandledByUnlockPasswordInput(t *testing.T) {
 		t.Fatalf("password input is %q, want q", screen.input.Value())
 	}
 }
+
+func TestEscapeQuitsFromUnlockScreen(t *testing.T) {
+	m := newModelWithState(context.Background(), AccountState{}, Services{}, true)
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if cmd == nil {
+		t.Fatal("escape did not return a quit command")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatal("escape did not quit from the unlock screen")
+	}
+}

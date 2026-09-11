@@ -56,6 +56,8 @@ func (s *databaseUnlockScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigation)
 	if key, ok := msg.(tea.KeyMsg); ok {
 		s.err = nil
 		switch key.String() {
+		case "esc":
+			return s, nil, navigation{destination: exitApplication}
 		case "enter":
 			password := s.input.Value()
 			if password == "" {
@@ -92,7 +94,7 @@ func (s *databaseUnlockScreen) View() string {
 	if s.err != nil {
 		lines = append(lines, "", lipgloss.NewStyle().Foreground(outColor).Render(ansi.Truncate(s.err.Error(), contentWidth, "…")))
 	}
-	lines = append(lines, "", helpStyle.Render("enter unlock • q quit"))
+	lines = append(lines, "", helpStyle.Render("enter unlock • esc quit"))
 	modal := cardStyle.Width(contentWidth).Render(strings.Join(lines, "\n"))
 	return lipgloss.Place(s.width, s.height, lipgloss.Center, lipgloss.Center, modal)
 }

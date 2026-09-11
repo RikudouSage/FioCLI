@@ -69,6 +69,7 @@ const (
 	accountRemoved
 	accountsUpdated
 	databaseUnlocked
+	exitApplication
 )
 
 // AccountSwitcher loads an account and its transactions for the supplied
@@ -147,7 +148,9 @@ func (m tuiModel) Init() tea.Cmd { return m.current.Init() }
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "q", "ctrl+c":
+		case "ctrl+c":
+			return m, tea.Quit
+		case "q":
 			if input, ok := m.current.(textInputScreen); ok && input.acceptsTextInput() {
 				break
 			}
@@ -196,6 +199,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.current = m.transactions
 		}
+	case exitApplication:
+		return m, tea.Quit
 	}
 	return m, cmd
 }
