@@ -2,7 +2,12 @@
 set -eu
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-module_dir=$(go list -m -f '{{.Dir}}' github.com/mattn/go-sqlite3)
+module_dir=$(go mod download -json github.com/mattn/go-sqlite3 |
+	sed -n 's/^[[:space:]]*"Dir": "\(.*\)"[,]\{0,1\}$/\1/p')
+if [ -z "$module_dir" ] || [ "$module_dir" = "." ] || [ "$module_dir" = "/" ]; then
+	echo "failed to resolve the go-sqlite3 module directory" >&2
+	exit 1
+fi
 replacement_dir="$repo_root/build/go-modules/github.com/mattn/go-sqlite3"
 patched_file="$replacement_dir/sqlite3.go"
 modfile="$repo_root/build/go-sqlite3-sqlcipher.mod"
