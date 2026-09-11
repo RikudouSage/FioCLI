@@ -24,3 +24,13 @@ func RenderJSON(output io.Writer, txs []model.Transaction, limit int) error {
 	}
 	return nil
 }
+
+// RenderTransactionJSON writes one transaction as indented JSON.
+func RenderTransactionJSON(output io.Writer, transaction model.Transaction) error {
+	encoder := json.NewEncoder(output)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(transaction); err != nil {
+		return fmt.Errorf("failed encoding transaction as JSON: %w", err)
+	}
+	return nil
+}

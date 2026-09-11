@@ -54,6 +54,53 @@ func TestRenderJSONIncludesDetailsAndHonorsLimit(t *testing.T) {
 	}
 }
 
+func TestRenderDetailFormatsCompleteTransaction(t *testing.T) {
+	transaction := outputTestTransaction(t)
+	transaction.Amount = decimal.RequireFromString("-1234567.5")
+	transaction.LocalOnly = true
+	variableSymbol := "1234567890"
+	transaction.VariableSymbol = &variableSymbol
+	account := model.Account{
+		AccountNumber: "example-account",
+		BankCode:      "2010",
+		IBAN:          "CZ6508000000192000145399",
+	}
+
+	var output bytes.Buffer
+	RenderDetail(&output, account, transaction)
+	plain := ansi.Strip(output.String())
+	for _, want := range []string{
+		"Transaction ID", "42",
+		"Pending confirmation",
+		"example-account/2010",
+		"CZ65 0800 0000 1920 0014 5399",
+		"11 September 2026",
+		"-1,234,567.50 CZK",
+		"Card payment",
+		"Variable symbol", "1234567890",
+		"Constant symbol", "—",
+		"Morning coffee",
+	} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("detail output does not contain %q:\n%s", want, plain)
+		}
+	}
+}
+
+func TestRenderTransactionJSONWritesObject(t *testing.T) {
+	var output bytes.Buffer
+	if err := RenderTransactionJSON(&output, outputTestTransaction(t)); err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(output.Bytes(), &decoded); err != nil {
+		t.Fatalf("rendered invalid JSON: %v", err)
+	}
+	if decoded["id"] != float64(42) {
+		t.Fatalf("unexpected JSON output: %#v", decoded)
+	}
+}
+
 func TestRenderTableAlignsColoredColumns(t *testing.T) {
 	previousNoColor := color.NoColor
 	color.NoColor = false
