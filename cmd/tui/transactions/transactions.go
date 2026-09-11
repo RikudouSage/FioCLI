@@ -34,6 +34,7 @@ const (
 var (
 	primaryColor = lipgloss.AdaptiveColor{Light: "#075E54", Dark: "#5EE1B7"}
 	mutedColor   = lipgloss.AdaptiveColor{Light: "#667085", Dark: "#8B95A5"}
+	faintColor   = lipgloss.AdaptiveColor{Light: "#98A2B3", Dark: "#667085"}
 	inColor      = lipgloss.AdaptiveColor{Light: "#08783E", Dark: "#57D68D"}
 	outColor     = lipgloss.AdaptiveColor{Light: "#B42318", Dark: "#FF7B72"}
 
@@ -71,9 +72,9 @@ type transactionDelegate struct {
 func newTransactionDelegate() transactionDelegate {
 	return transactionDelegate{
 		normalTitle:   lipgloss.NewStyle().PaddingLeft(2),
-		normalDesc:    lipgloss.NewStyle().PaddingLeft(2).Foreground(mutedColor),
+		normalDesc:    lipgloss.NewStyle().PaddingLeft(2),
 		selectedTitle: lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, false, false, true).BorderForeground(primaryColor).PaddingLeft(1).Bold(true),
-		selectedDesc:  lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, false, false, true).BorderForeground(primaryColor).PaddingLeft(1).Foreground(mutedColor),
+		selectedDesc:  lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, false, false, true).BorderForeground(primaryColor).PaddingLeft(1),
 	}
 }
 
@@ -104,7 +105,16 @@ func (receiver transactionDelegate) Render(writer io.Writer, transactionList lis
 		amountStyle = amountStyle.Foreground(inColor)
 	}
 	title := name + space + amountStyle.Render(amount)
-	description := ansi.Truncate(transaction.Description(), contentWidth, "…")
+	metadata := lipgloss.NewStyle().Foreground(mutedColor).Render(transaction.metadata())
+	if paymentType := transaction.paymentType(); paymentType != "" {
+		metadata += lipgloss.NewStyle().Foreground(faintColor).Render("  •  " + paymentType)
+	}
+	description := metadata
+	if comment := transaction.comment(); comment != "" {
+		description = lipgloss.NewStyle().Bold(true).Foreground(primaryColor).Render(comment) +
+			lipgloss.NewStyle().Foreground(mutedColor).Render("  •  ") + metadata
+	}
+	description = ansi.Truncate(description, contentWidth, "…")
 	fmt.Fprintf(writer, "%s\n%s", titleStyle.Render(title), descriptionStyle.Render(description))
 }
 
@@ -123,12 +133,37 @@ func (receiver transactionItem) Title() string {
 	return fmt.Sprintf("%s  %s", formatAmount(receiver.transaction), receiver.displayName())
 }
 
+func (receiver transactionItem) comment() string {
+	return strings.TrimSpace(pointerString(receiver.transaction.Comment))
+}
+
 func (receiver transactionItem) Description() string {
+	description := receiver.metadata()
+	if paymentType := receiver.paymentType(); paymentType != "" {
+		description += "  •  " + paymentType
+	}
+	if comment := receiver.comment(); comment != "" {
+		return comment + "  •  " + description
+	}
+	return description
+}
+
+func (receiver transactionItem) paymentType() string {
+	rawType := strings.TrimSpace(receiver.transaction.TransactionType.String())
+	translatedType := translateTransactionType(rawType)
+	title := strings.TrimSpace(receiver.displayName())
+	if rawType == "" || strings.EqualFold(title, rawType) || strings.EqualFold(title, translatedType) {
+		return ""
+	}
+	return translatedType
+}
+
+func (receiver transactionItem) metadata() string {
 	account := counterpartyAccount(receiver.transaction)
 	if account == "" {
 		account = translateTransactionType(receiver.transaction.TransactionType.String())
 	}
-	return fmt.Sprintf("%s  •  %s", receiver.transaction.Date.AsTime().Format("02 Jan 2006"), account)
+	return receiver.transaction.Date.AsTime().Format("02 Jan 2006") + "  •  " + account
 }
 
 func (receiver transactionItem) FilterValue() string {

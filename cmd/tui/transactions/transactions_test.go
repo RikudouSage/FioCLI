@@ -73,6 +73,41 @@ func TestTransactionCanBeFilteredByAmount(t *testing.T) {
 	}
 }
 
+func TestListShowsPaymentComment(t *testing.T) {
+	m := newModel(testAccount(), []model.Transaction{testTransaction(t)})
+	view := m.View()
+	for _, want := range []string{"Morning coffee", "Card payment"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("list does not contain %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestListOmitsPaymentTypeWhenItIsTheTitle(t *testing.T) {
+	transaction := testTransaction(t)
+	transaction.CounterpartyName = ""
+	item := transactionItem{transaction: transaction}
+	if got := item.paymentType(); got != "" {
+		t.Fatalf("paymentType() = %q, want empty string when type is the title", got)
+	}
+	if strings.Count(item.Title()+" "+item.Description(), "Card payment") != 1 {
+		t.Fatalf("payment type is duplicated across title and description: %q / %q", item.Title(), item.Description())
+	}
+}
+
+func TestMissingCommentDoesNotFallBackToTransactionType(t *testing.T) {
+	transaction := testTransaction(t)
+	blankComment := "   \t"
+	transaction.Comment = &blankComment
+	item := transactionItem{transaction: transaction}
+	if got := item.comment(); got != "" {
+		t.Fatalf("comment() = %q, want empty string", got)
+	}
+	if got := item.Description(); got != "11 Sep 2026  •  123456/2010  •  Card payment" {
+		t.Fatalf("Description() = %q, want compact metadata without an empty comment", got)
+	}
+}
+
 func TestSubstringFilterDoesNotFuzzyMatchAccountNumber(t *testing.T) {
 	targets := []string{
 		"-125.00 CZK 1325090010/3030",
