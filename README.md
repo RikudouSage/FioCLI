@@ -1,12 +1,13 @@
-# FioCLI
+# Fio CLI
 
-FioCLI is a command-line client for managing Fio banka accounts. It stores account credentials and transaction data in a local encrypted database, lets you switch between configured accounts, synchronizes transactions, and can create domestic payments. An interactive terminal UI is available for browsing accounts and transactions.
+Fio CLI is a command-line client for managing Fio bank accounts. It stores account credentials and transaction data in a local encrypted database, lets you switch between configured accounts, synchronizes transactions, and can create domestic payments. An interactive terminal UI is available for browsing accounts and transactions.
 
 ## Requirements
 
 - Go 1.27 or a development shell from `flake.nix`
-- A Fio banka API key
-- An encryption password supplied through `FIO_ENCRYPTION_PASSWORD`
+- A Fio bank API key
+- An encryption password, supplied through `FIO_ENCRYPTION_PASSWORD` or entered
+  in the interactive UI
 
 ## Build and run
 
@@ -32,6 +33,30 @@ FIO_ENCRYPTION_PASSWORD='your-password' ./fio add-account
 ```
 
 Run `./fio --help` or `./fio <command> --help` for all commands and flags. API keys are prompted for interactively when adding an account; avoid passing them directly on the command line where possible.
+
+## Interactive UI
+
+Start the terminal UI with `./fio ui`. If the encrypted database cannot be
+opened with `FIO_ENCRYPTION_PASSWORD`, it prompts for the password instead. The
+password input is masked.
+
+The UI works even when no account has been configured: add an account by
+entering its API key, then choose which account to use. It lets you browse and
+filter transactions, inspect transaction details, synchronize new transactions,
+switch or remove accounts, and create domestic payments. The payment form
+collects recipient details, amount and currency, recipient message, payment
+symbols, requested date, payment type, and a private comment. After a
+successful submission, the local transaction list refreshes.
+
+From the transaction screen:
+
+- `enter` opens the selected transaction's details.
+- `p` opens the domestic-payment form.
+- `a` opens the account picker, where `d`/`delete` removes an account.
+- `r` synchronizes transactions; `/` filters the list; `q` or `Ctrl+C` quits.
+
+Press `esc` to leave a form or dialog without submitting it. The UI includes
+contextual key hints for its other controls.
 
 ## Development
 
