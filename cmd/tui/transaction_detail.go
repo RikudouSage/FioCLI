@@ -31,8 +31,6 @@ func (s *transactionDetailScreen) Init() tea.Cmd { return nil }
 func (s *transactionDetailScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigation) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "q", "ctrl+c":
-			return s, nil, navigation{destination: quit}
 		case "a":
 			return s, nil, navigation{destination: showAccountPicker}
 		case "esc", "backspace", "left", "h":

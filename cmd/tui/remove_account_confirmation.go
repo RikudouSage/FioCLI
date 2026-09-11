@@ -37,7 +37,7 @@ func (c *confirmation) Update(msg tea.Msg) confirmationAction {
 	switch keyMsg.String() {
 	case "y", "enter":
 		return confirmationAccepted
-	case "n", "esc", "q", "backspace", "left", "h":
+	case "n", "esc", "backspace", "left", "h":
 		return confirmationCancelled
 	}
 	return confirmationIdle

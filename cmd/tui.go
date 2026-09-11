@@ -94,8 +94,19 @@ var uiCmd = &cobra.Command{
 			}
 			return state, nil
 		}
+		registerAccount := func(ctx context.Context, apiKey string) ([]model.Account, model.Account, error) {
+			added, err := client.RegisterAccount(ctx, apiKey, false)
+			if err != nil {
+				return nil, model.Account{}, fmt.Errorf("is the API key correct? %w", err)
+			}
+			accounts, err := client.Accounts(ctx)
+			if err != nil {
+				return nil, model.Account{}, fmt.Errorf("failed listing accounts: %w", err)
+			}
+			return accounts, added, nil
+		}
 
-		if err := tui.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), account.AccountData(), transactions, accounts, switchAccount, reloadTransactions, removeAccount); err != nil {
+		if err := tui.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), account.AccountData(), transactions, accounts, switchAccount, reloadTransactions, removeAccount, registerAccount); err != nil {
 			return fmt.Errorf("failed rendering transactions: %w", err)
 		}
 		return nil

@@ -15,8 +15,8 @@ const (
 )
 
 // Run starts the interactive account UI.
-func Run(ctx context.Context, input io.Reader, output io.Writer, account model.Account, txs []model.Transaction, accounts []model.Account, switchAccount AccountSwitcher, reloadTransactions TransactionReloader, removeAccount AccountRemover) error {
-	program := tea.NewProgram(newModelWithServices(ctx, account, txs, accounts, switchAccount, reloadTransactions, removeAccount), tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output), tea.WithAltScreen())
+func Run(ctx context.Context, input io.Reader, output io.Writer, account model.Account, txs []model.Transaction, accounts []model.Account, switchAccount AccountSwitcher, reloadTransactions TransactionReloader, removeAccount AccountRemover, registerAccount AccountRegistrar) error {
+	program := tea.NewProgram(newModelWithServices(ctx, account, txs, accounts, switchAccount, reloadTransactions, removeAccount, registerAccount), tea.WithContext(ctx), tea.WithInput(input), tea.WithOutput(output), tea.WithAltScreen())
 	_, err := program.Run()
 	return err
 }
@@ -46,9 +46,10 @@ const (
 	showTransactionDetail
 	showAccountPicker
 	showRemoveAccountConfirmation
+	showAddAccount
 	selectAccount
 	accountRemoved
-	quit
+	accountsUpdated
 )
 
 // AccountSwitcher loads an account and its transactions. Persisting the
@@ -68,6 +69,9 @@ type AccountState struct {
 // AccountRemover removes an account and resolves the account that should be active afterwards.
 type AccountRemover func(context.Context, string) (AccountState, error)
 
+// AccountRegistrar registers an API key and returns the refreshed account list.
+type AccountRegistrar func(context.Context, string) ([]model.Account, model.Account, error)
+
 type tuiModel struct {
 	current            screen
 	transactions       *transactionsScreen
@@ -78,6 +82,7 @@ type tuiModel struct {
 	switchAccount      AccountSwitcher
 	reloadTransactions TransactionReloader
 	removeAccount      AccountRemover
+	registerAccount    AccountRegistrar
 }
 
 func newModel(account model.Account, txs []model.Transaction) tuiModel {
@@ -85,17 +90,23 @@ func newModel(account model.Account, txs []model.Transaction) tuiModel {
 }
 
 func newModelWithAccounts(ctx context.Context, account model.Account, txs []model.Transaction, accounts []model.Account, switchAccount AccountSwitcher) tuiModel {
-	return newModelWithServices(ctx, account, txs, accounts, switchAccount, nil, nil)
+	return newModelWithServices(ctx, account, txs, accounts, switchAccount, nil, nil, nil)
 }
 
-func newModelWithServices(ctx context.Context, account model.Account, txs []model.Transaction, accounts []model.Account, switchAccount AccountSwitcher, reloadTransactions TransactionReloader, removeAccount AccountRemover) tuiModel {
+func newModelWithServices(ctx context.Context, account model.Account, txs []model.Transaction, accounts []model.Account, switchAccount AccountSwitcher, reloadTransactions TransactionReloader, removeAccount AccountRemover, registerAccount AccountRegistrar) tuiModel {
 	transactions := newTransactionsScreenWithReload(account, txs, reloadTransactions, ctx)
-	return tuiModel{current: transactions, transactions: transactions, width: defaultWidth, height: defaultHeight, ctx: ctx, accounts: accounts, switchAccount: switchAccount, reloadTransactions: reloadTransactions, removeAccount: removeAccount}
+	return tuiModel{current: transactions, transactions: transactions, width: defaultWidth, height: defaultHeight, ctx: ctx, accounts: accounts, switchAccount: switchAccount, reloadTransactions: reloadTransactions, removeAccount: removeAccount, registerAccount: registerAccount}
 }
 
 func (m tuiModel) Init() tea.Cmd { return m.current.Init() }
 
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		}
+	}
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = max(size.Width, 1)
 		m.height = max(size.Height, 1)
@@ -112,9 +123,12 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showTransactionDetail:
 		m.current = newTransactionDetailScreen(navigation.transaction, m.width, m.height)
 	case showAccountPicker:
-		m.current = newAccountPickerScreen(m.current, m.accounts, m.transactions.dashboard.account.AccountNumber, m.switchAccount, m.removeAccount, m.ctx, m.width, m.height)
+		m.current = newAccountPickerScreen(m.current, m.accounts, m.transactions.dashboard.account.AccountNumber, m.switchAccount, m.removeAccount, m.registerAccount, m.ctx, m.width, m.height)
 	case showRemoveAccountConfirmation:
 		m.current = newRemoveAccountConfirmationScreen(m.current, navigation.account, m.removeAccount, m.ctx, m.width, m.height)
+	case showAddAccount:
+		m.current = newAddAccountScreen(m.current, m.registerAccount, m.ctx, m.width, m.height)
+		cmd = m.current.Init()
 	case selectAccount:
 		m.transactions = newTransactionsScreenWithReload(navigation.account, navigation.transactions, m.reloadTransactions, m.ctx)
 		m.transactions.Resize(m.width, m.height)
@@ -124,8 +138,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.transactions = newTransactionsScreenWithReload(navigation.account, navigation.transactions, m.reloadTransactions, m.ctx)
 		m.transactions.Resize(m.width, m.height)
 		m.current = m.transactions
-	case quit:
-		return m, tea.Quit
+	case accountsUpdated:
+		m.accounts = navigation.accounts
 	}
 	return m, cmd
 }

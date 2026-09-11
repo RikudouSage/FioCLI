@@ -20,6 +20,7 @@ const (
 	accountPickerSelected
 	accountPickerRemove
 	accountPickerRemoveImmediately
+	accountPickerAdd
 )
 
 // accountPicker is a reusable modal component. It owns selection, keyboard
@@ -54,7 +55,7 @@ func (p *accountPicker) Update(msg tea.Msg) accountPickerAction {
 	}
 	p.err = nil
 	switch keyMsg.String() {
-	case "esc", "q", "backspace", "left", "h":
+	case "esc", "backspace", "left", "h":
 		return accountPickerCancelled
 	case "up", "k":
 		if p.selected > 0 {
@@ -76,6 +77,8 @@ func (p *accountPicker) Update(msg tea.Msg) accountPickerAction {
 		if len(p.accounts) > 0 {
 			return accountPickerRemoveImmediately
 		}
+	case "a":
+		return accountPickerAdd
 	}
 	return accountPickerIdle
 }
@@ -116,8 +119,8 @@ func (p *accountPicker) View() string {
 	if p.err != nil {
 		lines = append(lines, "", lipgloss.NewStyle().Foreground(outColor).Render(ansi.Truncate(p.err.Error(), contentWidth, "…")))
 	}
-	lines = append(lines, "", helpStyle.Render("↑/k ↓/j select • enter switch • d/delete remove"))
-	lines = append(lines, helpStyle.Render("esc cancel"))
+	lines = append(lines, "", helpStyle.Render("↑/k ↓/j select • enter switch • a add"))
+	lines = append(lines, helpStyle.Render("d/delete remove • esc cancel"))
 	modal := cardStyle.Width(contentWidth).Render(strings.Join(lines, "\n"))
 	return lipgloss.Place(p.width, p.height, lipgloss.Center, lipgloss.Center, modal)
 }
@@ -129,15 +132,16 @@ type accountSwitchResult struct {
 }
 
 type accountPickerScreen struct {
-	previous      screen
-	picker        *accountPicker
-	switchAccount AccountSwitcher
-	removeAccount AccountRemover
-	ctx           context.Context
+	previous        screen
+	picker          *accountPicker
+	switchAccount   AccountSwitcher
+	removeAccount   AccountRemover
+	registerAccount AccountRegistrar
+	ctx             context.Context
 }
 
-func newAccountPickerScreen(previous screen, accounts []model.Account, current string, switchAccount AccountSwitcher, removeAccount AccountRemover, ctx context.Context, width, height int) *accountPickerScreen {
-	s := &accountPickerScreen{previous: previous, picker: newAccountPicker(accounts, current), switchAccount: switchAccount, removeAccount: removeAccount, ctx: ctx}
+func newAccountPickerScreen(previous screen, accounts []model.Account, current string, switchAccount AccountSwitcher, removeAccount AccountRemover, registerAccount AccountRegistrar, ctx context.Context, width, height int) *accountPickerScreen {
+	s := &accountPickerScreen{previous: previous, picker: newAccountPicker(accounts, current), switchAccount: switchAccount, removeAccount: removeAccount, registerAccount: registerAccount, ctx: ctx}
 	s.Resize(width, height)
 	return s
 }
@@ -191,6 +195,8 @@ func (s *accountPickerScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigation) 
 		s.picker.loading = true
 		s.picker.loadingMessage = "Removing account…"
 		return s, removeAccountCmd(s.ctx, s.removeAccount, s.picker.SelectedAccount().AccountNumber), navigation{}
+	case accountPickerAdd:
+		return s, nil, navigation{destination: showAddAccount}
 	}
 	return s, nil, navigation{}
 }

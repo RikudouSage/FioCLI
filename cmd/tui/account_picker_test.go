@@ -64,7 +64,7 @@ func TestAccountPickerShowsSwitchError(t *testing.T) {
 	account := model.Account{AccountNumber: "first-account"}
 	picker := newAccountPickerScreen(nil, []model.Account{account}, account.AccountNumber, func(context.Context, string) (model.Account, []model.Transaction, error) {
 		return model.Account{}, nil, context.DeadlineExceeded
-	}, nil, context.Background(), 80, 24)
+	}, nil, nil, context.Background(), 80, 24)
 
 	_, cmd, _ := picker.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	updated, _, navigation := picker.Update(cmd())
@@ -76,9 +76,69 @@ func TestAccountPickerShowsSwitchError(t *testing.T) {
 	}
 }
 
+func TestAccountPickerAddOpensMaskedAPIKeyFormAndRegisters(t *testing.T) {
+	current := model.Account{AccountNumber: "first-account", Currency: "CZK"}
+	added := model.Account{AccountNumber: "added-account", Currency: "EUR"}
+	receivedKey := ""
+	registrar := func(_ context.Context, apiKey string) ([]model.Account, model.Account, error) {
+		receivedKey = apiKey
+		return []model.Account{current, added}, added, nil
+	}
+	m := newModelWithServices(context.Background(), current, nil, []model.Account{current}, nil, nil, nil, registrar)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(tuiModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(tuiModel)
+	if _, ok := m.current.(*addAccountScreen); !ok {
+		t.Fatal("a in the account picker did not open the API key form")
+	}
+
+	const apiKey = "secret-api-key"
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(apiKey)})
+	m = updated.(tuiModel)
+	if view := m.View(); strings.Contains(view, apiKey) {
+		t.Fatalf("API key is visible in the form:\n%s", view)
+	}
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(tuiModel)
+	if cmd == nil {
+		t.Fatal("submitting the API key did not start registration")
+	}
+	updated, _ = m.Update(cmd())
+	m = updated.(tuiModel)
+	if receivedKey != apiKey {
+		t.Fatalf("registrar received %q, want the entered API key", receivedKey)
+	}
+	if _, ok := m.current.(*accountPickerScreen); !ok {
+		t.Fatal("successful registration did not return to the account picker")
+	}
+	if view := m.View(); !strings.Contains(view, "added-account") {
+		t.Fatalf("registered account is not shown in the picker:\n%s", view)
+	}
+}
+
+func TestQExitsGloballyFromAPIKeyForm(t *testing.T) {
+	account := model.Account{AccountNumber: "first-account"}
+	m := newModelWithServices(context.Background(), account, nil, []model.Account{account}, nil, nil, nil, nil)
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(tuiModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(tuiModel)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if cmd == nil {
+		t.Fatal("q did not return a quit command")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatal("q did not exit from the API key form")
+	}
+}
+
 func TestDeleteOpensConfirmationAndCanBeCancelled(t *testing.T) {
 	account := model.Account{AccountNumber: "first-account", BankCode: "2010"}
-	m := newModelWithServices(context.Background(), account, nil, []model.Account{account}, nil, nil, nil)
+	m := newModelWithServices(context.Background(), account, nil, []model.Account{account}, nil, nil, nil, nil)
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	m = updated.(tuiModel)
@@ -107,7 +167,7 @@ func TestConfirmedDeleteRemovesAccount(t *testing.T) {
 		removed = true
 		return AccountState{}, nil
 	}
-	m := newModelWithServices(context.Background(), account, nil, []model.Account{account}, nil, nil, remover)
+	m := newModelWithServices(context.Background(), account, nil, []model.Account{account}, nil, nil, remover, nil)
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	m = updated.(tuiModel)
@@ -132,7 +192,7 @@ func TestShiftDeleteSkipsConfirmation(t *testing.T) {
 		removed = accountNumber
 		return AccountState{}, nil
 	}
-	m := newModelWithServices(context.Background(), account, nil, []model.Account{account}, nil, nil, remover)
+	m := newModelWithServices(context.Background(), account, nil, []model.Account{account}, nil, nil, remover, nil)
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	m = updated.(tuiModel)

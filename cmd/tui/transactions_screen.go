@@ -55,8 +55,6 @@ func (s *transactionsScreen) Update(msg tea.Msg) (screen, tea.Cmd, navigation) {
 	}
 	if keyMsg, ok := msg.(tea.KeyMsg); ok && !s.list.SettingFilter() {
 		switch keyMsg.String() {
-		case "ctrl+c", "q":
-			return s, nil, navigation{destination: quit}
 		case "a":
 			return s, nil, navigation{destination: showAccountPicker}
 		case "r":
