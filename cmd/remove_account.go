@@ -10,6 +10,9 @@ import (
 var removeAccountCmd = &cobra.Command{
 	Use:   "remove-account [flags] [<account number>]",
 	Short: "Removes an account from your local database",
+	Aliases: []string{
+		"remove",
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		accountNumber, err := helper.GetAccountFromArgsOrInteractively(args, cmd, client)
 		if err != nil {

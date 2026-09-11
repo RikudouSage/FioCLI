@@ -15,6 +15,9 @@ import (
 var addAccountCmd = &cobra.Command{
 	Use:   "add-account [flags]",
 	Short: "Adds a new account to your local database",
+	Aliases: []string{
+		"login",
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		apiKey := lo.Must(cmd.Flags().GetString("api-key"))
 		if apiKey != "" {

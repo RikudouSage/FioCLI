@@ -11,6 +11,9 @@ var switchAccountCmd = &cobra.Command{
 	Use:   "switch-account [flags] [<account number>]",
 	Short: "Switch the currently selected account",
 	Long:  "Switch the currently selected account, the currently selected account is the one all account operations are being done on",
+	Aliases: []string{
+		"switch",
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		newAccount, err := helper.GetAccountFromArgsOrInteractively(args, cmd, client)
 		if err != nil {

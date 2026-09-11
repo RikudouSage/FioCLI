@@ -11,6 +11,9 @@ import (
 var uiCmd = &cobra.Command{
 	Use:   "ui",
 	Short: "Open the interactive account transaction browser",
+	Aliases: []string{
+		"tui",
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		account, err := client.Account(cmd.Context(), viper.GetString("current-account"))
 		if err != nil {
