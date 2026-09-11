@@ -381,8 +381,8 @@ func paymentFieldLabel(field *paymentField, focused bool) string {
 	if focused {
 		return lipgloss.NewStyle().Bold(true).Foreground(paymentSectionColor(field.section)).Render(field.label)
 	}
-	if strings.HasSuffix(field.label, " *") {
-		return labelStyle.Render(strings.TrimSuffix(field.label, " *")) + lipgloss.NewStyle().Foreground(paymentRequiredColor).Render(" *")
+	if before, ok := strings.CutSuffix(field.label, " *"); ok {
+		return labelStyle.Render(before) + lipgloss.NewStyle().Foreground(paymentRequiredColor).Render(" *")
 	}
 	return labelStyle.Render(field.label)
 }

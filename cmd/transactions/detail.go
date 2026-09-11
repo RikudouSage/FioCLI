@@ -62,8 +62,8 @@ func RenderDetail(output io.Writer, account model.Account, transaction model.Tra
 func formatMoney(amount decimal.Decimal, currency string) string {
 	value := amount.StringFixed(2)
 	sign := ""
-	if strings.HasPrefix(value, "-") {
-		sign, value = "-", strings.TrimPrefix(value, "-")
+	if after, ok := strings.CutPrefix(value, "-"); ok {
+		sign, value = "-", after
 	}
 	parts := strings.SplitN(value, ".", 2)
 	for i := len(parts[0]) - 3; i > 0; i -= 3 {
