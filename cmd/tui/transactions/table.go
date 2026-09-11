@@ -53,7 +53,7 @@ func RenderTable(output io.Writer, txs []model.Transaction, limit int) {
 			pointerString(transaction.VariableSymbol),
 			pointerString(transaction.SpecificSymbol),
 			pointerString(transaction.UserIdentity),
-			transaction.TransactionType.String(),
+			translateTransactionType(transaction.TransactionType.String()),
 			pointerString(transaction.PerformedBy),
 			pointerString(transaction.AdditionalInfo),
 			pointerString(transaction.Comment),

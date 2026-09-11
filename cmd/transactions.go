@@ -43,7 +43,7 @@ var transactionsCmd = &cobra.Command{
 			return nil
 		}
 
-		if err := transactionstui.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), transactions); err != nil {
+		if err := transactionstui.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), account.AccountData(), transactions); err != nil {
 			return fmt.Errorf("failed rendering transactions: %w", err)
 		}
 

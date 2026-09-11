@@ -14,7 +14,7 @@ import (
 )
 
 func TestEnterOpensDetailAndEscapeReturnsToList(t *testing.T) {
-	m := newModel([]model.Transaction{testTransaction(t)})
+	m := newModel(testAccount(), []model.Transaction{testTransaction(t)})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = updated.(tuiModel)
@@ -36,7 +36,7 @@ func TestEnterOpensDetailAndEscapeReturnsToList(t *testing.T) {
 }
 
 func TestEmptyListIgnoresEnter(t *testing.T) {
-	m := newModel(nil)
+	m := newModel(testAccount(), nil)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = updated.(tuiModel)
 	if m.screen != listScreen {
@@ -47,7 +47,7 @@ func TestEmptyListIgnoresEnter(t *testing.T) {
 func TestFilteredListDoesNotRenderBrokenEscapeSequences(t *testing.T) {
 	transaction := testTransaction(t)
 	transaction.CounterpartyAccount = "example-8898-account"
-	m := newModel([]model.Transaction{transaction})
+	m := newModel(testAccount(), []model.Transaction{transaction})
 	m.list.SetFilterText("8898")
 
 	view := m.View()
@@ -87,14 +87,48 @@ func TestSubstringFilterDoesNotFuzzyMatchAccountNumber(t *testing.T) {
 }
 
 func TestResizeUpdatesBothScreens(t *testing.T) {
-	m := newModel([]model.Transaction{testTransaction(t)})
+	m := newModel(testAccount(), []model.Transaction{testTransaction(t)})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = updated.(tuiModel)
-	if m.list.Width() != 100 || m.list.Height() != 30 {
-		t.Fatalf("list size = %dx%d, want 100x30", m.list.Width(), m.list.Height())
+	if m.list.Width() != 100 || m.list.Height() != 25 {
+		t.Fatalf("list size = %dx%d, want 100x25", m.list.Width(), m.list.Height())
 	}
-	if m.viewport.Width != 100 || m.viewport.Height != 26 {
-		t.Fatalf("viewport size = %dx%d, want 100x26", m.viewport.Width, m.viewport.Height)
+	if m.viewport.Width != 96 || m.viewport.Height != 23 {
+		t.Fatalf("viewport size = %dx%d, want 96x23", m.viewport.Width, m.viewport.Height)
+	}
+}
+
+func TestDashboardUsesAccountData(t *testing.T) {
+	m := newModel(testAccount(), []model.Transaction{testTransaction(t)})
+	view := m.View()
+	for _, want := range []string{"example-account/2010", "CZ00 EXAM PLEI BAN"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("dashboard does not contain account data %q", want)
+		}
+	}
+}
+
+func TestFormatIBAN(t *testing.T) {
+	for input, want := range map[string]string{
+		"CZ6508000000192000145399":     "CZ65 0800 0000 1920 0014 5399",
+		"CZ65 0800 00001920 0014 5399": "CZ65 0800 0000 1920 0014 5399",
+		"":                             "",
+	} {
+		if got := formatIBAN(input); got != want {
+			t.Errorf("formatIBAN(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestTranslateTransactionType(t *testing.T) {
+	for input, want := range map[string]string{
+		"Platba kartou":           "Card payment",
+		"Okamžitá odchozí platba": "Instant outgoing payment",
+		"Future API value":        "Future API value",
+	} {
+		if got := translateTransactionType(input); got != want {
+			t.Errorf("translateTransactionType(%q) = %q, want %q", input, got, want)
+		}
 	}
 }
 
@@ -183,5 +217,15 @@ func testTransaction(t *testing.T) model.Transaction {
 		CounterpartyBankName: "Fio banka",
 		TransactionType:      transactionType,
 		Comment:              &comment,
+	}
+}
+
+func testAccount() model.Account {
+	return model.Account{
+		AccountNumber: "example-account",
+		BankCode:      "2010",
+		Currency:      "CZK",
+		IBAN:          "CZ00 EXAMPLE IBAN",
+		BIC:           "EXAMPLEBIC",
 	}
 }
