@@ -29,6 +29,7 @@ jobs:
       - name: Build app
         run: |
           nix develop --command make
+          nix develop --command patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 fio
           nix develop --command patchelf --remove-rpath fio
           mkdir -p dist
           cp --dereference fio dist/fio-linux-amd64
