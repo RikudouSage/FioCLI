@@ -25,7 +25,11 @@ func newTransactionDelegate() transactionDelegate {
 	}
 }
 
-func (transactionDelegate) Height() int                         { return 7 }
+// Most rows use three terminal lines including the list separator. Reserve one
+// additional line so a page beginning with the original multi-line month
+// summary stays within the list viewport instead of pushing the dashboard off
+// the top of the terminal.
+func (transactionDelegate) Height() int                         { return 4 }
 func (transactionDelegate) Spacing() int                        { return 0 }
 func (transactionDelegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 

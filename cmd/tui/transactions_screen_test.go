@@ -79,3 +79,16 @@ func TestQDoesNotQuitWhileFiltering(t *testing.T) {
 		t.Fatalf("filter is %q, want q", filter)
 	}
 }
+
+func TestTransactionListUsesAvailableHeight(t *testing.T) {
+	transactions := make([]model.Transaction, 60)
+	for index := range transactions {
+		transactions[index] = model.Transaction{ID: int64(index + 1), CounterpartyName: "Transaction", Amount: decimal.NewFromInt(1), Currency: "CZK"}
+	}
+	screen := newTransactionsScreen(model.Account{AccountNumber: "account", Currency: "CZK"}, transactions)
+	screen.Resize(80, 24)
+
+	if screen.list.Paginator.PerPage < 3 {
+		t.Fatalf("transaction list shows only %d rows in a 24-line terminal; want at least 3", screen.list.Paginator.PerPage)
+	}
+}

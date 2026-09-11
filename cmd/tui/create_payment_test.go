@@ -108,3 +108,18 @@ func TestCreatePaymentFormWrapsLongErrors(t *testing.T) {
 		t.Fatalf("long error was cut instead of wrapped:\n%s", view)
 	}
 }
+
+func TestCreatePaymentFormKeepsFocusedFieldVisibleInShortTerminal(t *testing.T) {
+	screen := newCreatePaymentScreen(nil, model.Account{Currency: "CZK"}, nil, context.Background(), 80, 20)
+	screen.focus(paymentComment)
+	view := screen.View()
+	if !strings.Contains(view, "Your comment") {
+		t.Fatalf("focused field is not visible in a short terminal:\n%s", view)
+	}
+	if !strings.Contains(view, "More fields above") {
+		t.Fatalf("short form does not indicate hidden fields:\n%s", view)
+	}
+	if strings.Contains(view, "Recipient account") {
+		t.Fatalf("form rendered fields above the visible window:\n%s", view)
+	}
+}

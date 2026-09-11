@@ -245,10 +245,15 @@ func (s *createPaymentScreen) View() string {
 		paymentFormTitleStyle.Render("CREATE PAYMENT"),
 		helpStyle.Render("From " + accountLabel(s.account)),
 	}
+	fieldLines := max(s.height-10-paymentErrorLines(s.err, contentWidth), 3)
+	start, end := s.visibleFieldRange(fieldLines)
+	if start > 0 {
+		lines = append(lines, "", helpStyle.Render("↑ More fields above"))
+	}
 	lastSection := ""
-	for index := range s.fields {
+	for index := start; index < end; index++ {
 		field := &s.fields[index]
-		if field.section != lastSection {
+		if index == start || field.section != lastSection {
 			lines = append(lines, "", paymentFormSectionStyle(field.section).Render(strings.ToUpper(field.section)+" FIELDS"))
 			lastSection = field.section
 		}
@@ -265,6 +270,9 @@ func (s *createPaymentScreen) View() string {
 		}
 		lines = append(lines, "", label, paymentInputView(field))
 	}
+	if end < len(s.fields) {
+		lines = append(lines, "", helpStyle.Render("↓ More fields below"))
+	}
 	if s.loading {
 		lines = append(lines, "", helpStyle.Render("Creating payment…"))
 	}
@@ -278,6 +286,46 @@ func (s *createPaymentScreen) View() string {
 	lines = append(lines, "", helpStyle.Render(help))
 	modal := cardStyle.Width(modalWidth - 4).Render(strings.Join(lines, "\n"))
 	return lipgloss.Place(s.width, s.height, lipgloss.Center, lipgloss.Center, modal)
+}
+
+// visibleFieldRange returns a contiguous part of the form that fits the
+// terminal while keeping the focused field on screen. The layout is rendered
+// directly rather than through a viewport so it remains readable in terminals
+// too short for the complete payment form.
+func (s *createPaymentScreen) visibleFieldRange(maxLines int) (int, int) {
+	start := 0
+	for {
+		end := s.fieldRangeEnd(start, maxLines)
+		if s.focused < end || start == s.focused {
+			return start, end
+		}
+		start++
+	}
+}
+
+func (s *createPaymentScreen) fieldRangeEnd(start, maxLines int) int {
+	used, end, previousSection := 0, start, ""
+	for end < len(s.fields) {
+		field := s.fields[end]
+		lines := 3 // blank line, label, and input/select value
+		if end == start || field.section != previousSection {
+			lines += 2 // blank line and section heading
+		}
+		if end > start && used+lines > maxLines {
+			break
+		}
+		used += lines
+		previousSection = field.section
+		end++
+	}
+	return end
+}
+
+func paymentErrorLines(err error, width int) int {
+	if err == nil {
+		return 0
+	}
+	return lipgloss.Height(ansi.Wrap(err.Error(), max(width, 1), "")) + 1
 }
 
 func (s *createPaymentScreen) Resize(width, height int) {
