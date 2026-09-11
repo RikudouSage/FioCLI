@@ -6,7 +6,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	transactionstui "go.chrastecky.dev/fio/fiocli/cmd/tui/transactions"
+	transactionoutput "go.chrastecky.dev/fio/fiocli/cmd/transactions"
 )
 
 var transactionsCmd = &cobra.Command{
@@ -29,33 +29,23 @@ var transactionsCmd = &cobra.Command{
 			return fmt.Errorf("failed getting transactions: %w", err)
 		}
 
-		nonInteractive := lo.Must(cmd.Flags().GetBool("non-interactive"))
-		if nonInteractive {
-			limit := lo.Must(cmd.Flags().GetInt("limit"))
-			if lo.Must(cmd.Flags().GetBool("json")) {
-				if err := transactionstui.RenderJSON(cmd.OutOrStdout(), transactions, limit); err != nil {
-					return err
-				}
-				return nil
+		limit := lo.Must(cmd.Flags().GetInt("limit"))
+		if lo.Must(cmd.Flags().GetBool("json")) {
+			if err := transactionoutput.RenderJSON(cmd.OutOrStdout(), transactions, limit); err != nil {
+				return err
 			}
-
-			transactionstui.RenderTable(cmd.OutOrStdout(), transactions, limit)
 			return nil
 		}
 
-		if err := transactionstui.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), account.AccountData(), transactions); err != nil {
-			return fmt.Errorf("failed rendering transactions: %w", err)
-		}
-
+		transactionoutput.RenderTable(cmd.OutOrStdout(), transactions, limit)
 		return nil
 	},
 }
 
 func init() {
 	transactionsCmd.Flags().Bool("sync", false, "Attempt sync before listing them")
-	transactionsCmd.Flags().Bool("non-interactive", false, "Non-interactive mode")
-	transactionsCmd.Flags().Int("limit", 20, "Limit the number of transactions to return (only for non-interactive mode)")
-	transactionsCmd.Flags().Bool("json", false, "Output results as JSON (only for non-interactive mode)")
+	transactionsCmd.Flags().Int("limit", 20, "Limit the number of transactions to return")
+	transactionsCmd.Flags().Bool("json", false, "Output results as JSON")
 
 	rootCmd.AddCommand(transactionsCmd)
 }

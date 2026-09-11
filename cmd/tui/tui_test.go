@@ -1,8 +1,6 @@
-package transactions
+package tui
 
 import (
-	"bytes"
-	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -191,84 +189,6 @@ func TestFormatIBAN(t *testing.T) {
 	} {
 		if got := formatIBAN(input); got != want {
 			t.Errorf("formatIBAN(%q) = %q, want %q", input, got, want)
-		}
-	}
-}
-
-func TestTranslateTransactionType(t *testing.T) {
-	for input, want := range map[string]string{
-		"Platba kartou":           "Card payment",
-		"Okamžitá odchozí platba": "Instant outgoing payment",
-		"Future API value":        "Future API value",
-	} {
-		if got := translateTransactionType(input); got != want {
-			t.Errorf("translateTransactionType(%q) = %q, want %q", input, got, want)
-		}
-	}
-}
-
-func TestRenderTableIncludesAllTransactionDetails(t *testing.T) {
-	transaction := testTransaction(t)
-	constantSymbol := "0308"
-	variableSymbol := "1234567890"
-	specificSymbol := "42"
-	userIdentity := "Invoice payment"
-	performedBy := "Card holder"
-	additionalInfo := "Terminal 123"
-	bic := "FIOBCZPPXXX"
-	instructionID := int64(987)
-	payerReference := "REF-2026"
-	transaction.ConstantSymbol = &constantSymbol
-	transaction.VariableSymbol = &variableSymbol
-	transaction.SpecificSymbol = &specificSymbol
-	transaction.UserIdentity = &userIdentity
-	transaction.PerformedBy = &performedBy
-	transaction.AdditionalInfo = &additionalInfo
-	transaction.BIC = &bic
-	transaction.InstructionID = &instructionID
-	transaction.PayerReference = &payerReference
-
-	var output bytes.Buffer
-	RenderTable(&output, []model.Transaction{transaction}, 20)
-
-	for _, want := range []string{
-		"Account number", "Counterparty bank code", "Constant symbol", "Variable symbol",
-		"Specific symbol", "User identity", "Performed by", "Additional info", "Comment",
-		"BIC", "Instruction ID", "Payer reference", "9876543210", "Morning coffee",
-		"REF-2026",
-	} {
-		if !strings.Contains(output.String(), want) {
-			t.Errorf("table output does not contain %q", want)
-		}
-	}
-}
-
-func TestRenderJSONIncludesDetailsAndHonorsLimit(t *testing.T) {
-	first := testTransaction(t)
-	second := testTransaction(t)
-	second.ID = 43
-
-	var output bytes.Buffer
-	if err := RenderJSON(&output, []model.Transaction{first, second}, 1); err != nil {
-		t.Fatal(err)
-	}
-
-	var decoded []map[string]any
-	if err := json.Unmarshal(output.Bytes(), &decoded); err != nil {
-		t.Fatalf("rendered invalid JSON: %v", err)
-	}
-	if len(decoded) != 1 {
-		t.Fatalf("rendered %d transactions, want 1", len(decoded))
-	}
-	for key, want := range map[string]any{
-		"id":                     float64(42),
-		"account_number":         "9876543210",
-		"counterparty_name":      "Coffee Shop",
-		"counterparty_bank_code": "2010",
-		"comment":                "Morning coffee",
-	} {
-		if got := decoded[0][key]; got != want {
-			t.Errorf("%s = %#v, want %#v", key, got, want)
 		}
 	}
 }

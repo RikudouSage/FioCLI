@@ -1,4 +1,4 @@
-package transactions
+package tui
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/shopspring/decimal"
 	"go.chrastecky.dev/fio-client/fioclient/model"
+	transactionoutput "go.chrastecky.dev/fio/fiocli/cmd/transactions"
 )
 
 const (
@@ -206,7 +207,7 @@ func withPendingStyle(style lipgloss.Style, pending bool) lipgloss.Style {
 func (receiver transactionItem) displayName() string {
 	name := receiver.transaction.CounterpartyName
 	if name == "" {
-		name = translateTransactionType(receiver.transaction.TransactionType.String())
+		name = transactionoutput.TranslateTransactionType(receiver.transaction.TransactionType.String())
 	}
 	if name == "" {
 		name = "Unknown transaction"
@@ -238,7 +239,7 @@ func (receiver transactionItem) Description() string {
 
 func (receiver transactionItem) paymentType() string {
 	rawType := strings.TrimSpace(receiver.transaction.TransactionType.String())
-	translatedType := translateTransactionType(rawType)
+	translatedType := transactionoutput.TranslateTransactionType(rawType)
 	title := strings.TrimSpace(receiver.displayName())
 	if rawType == "" || strings.EqualFold(title, rawType) || strings.EqualFold(title, translatedType) {
 		return ""
@@ -249,7 +250,7 @@ func (receiver transactionItem) paymentType() string {
 func (receiver transactionItem) metadata() string {
 	account := counterpartyAccount(receiver.transaction)
 	if account == "" {
-		account = translateTransactionType(receiver.transaction.TransactionType.String())
+		account = transactionoutput.TranslateTransactionType(receiver.transaction.TransactionType.String())
 	}
 	return receiver.transaction.Date.AsTime().Format("02 Jan 2006") + "  •  " + account
 }
@@ -261,7 +262,7 @@ func (receiver transactionItem) FilterValue() string {
 		receiver.transaction.CounterpartyName,
 		receiver.transaction.CounterpartyAccount,
 		receiver.transaction.CounterpartyBankName,
-		translateTransactionType(receiver.transaction.TransactionType.String()),
+		transactionoutput.TranslateTransactionType(receiver.transaction.TransactionType.String()),
 		receiver.transaction.TransactionType.String(),
 		pointerString(receiver.transaction.Comment),
 		pointerString(receiver.transaction.VariableSymbol),
@@ -437,7 +438,7 @@ func (receiver tuiModel) detailContent() string {
 	}
 	rows := [][2]string{
 		{"Date", t.Date.AsTime().Format("2 January 2006")},
-		{"Type", translateTransactionType(t.TransactionType.String())},
+		{"Type", transactionoutput.TranslateTransactionType(t.TransactionType.String())},
 		{"Counterparty", t.CounterpartyName},
 		{"Counterparty account", counterpartyAccount(t)},
 		{"Counterparty bank", t.CounterpartyBankName},

@@ -46,7 +46,7 @@ var transactionTypeTranslations = map[string]string{
 	"Okamžitá odchozí Europlatba":                "Instant outgoing euro payment",
 }
 
-func translateTransactionType(transactionType string) string {
+func TranslateTransactionType(transactionType string) string {
 	if translation, ok := transactionTypeTranslations[transactionType]; ok {
 		return translation
 	}
