@@ -48,6 +48,21 @@ collects recipient details, amount and currency, recipient message, payment
 symbols, requested date, payment type, and a private comment. After a
 successful submission, the local transaction list refreshes.
 
+### Screenshots
+
+<p>
+  <img src="docs/screenshots/unlock-database.png" alt="Database unlock prompt" width="49%">
+  <img src="docs/screenshots/transactions-september.png" alt="September transaction list" width="49%">
+</p>
+<p>
+  <img src="docs/screenshots/transaction-details.png" alt="Transaction details" width="49%">
+  <img src="docs/screenshots/account-picker.png" alt="Account picker" width="49%">
+</p>
+<p>
+  <img src="docs/screenshots/transactions-august.png" alt="August transaction list" width="49%">
+  <img src="docs/screenshots/create-payment.png" alt="Domestic payment form" width="49%">
+</p>
+
 From the transaction screen:
 
 - `enter` opens the selected transaction's details.
