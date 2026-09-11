@@ -52,24 +52,32 @@ const (
 	accountsUpdated
 )
 
-// AccountSwitcher loads an account and its transactions. Persisting the
-// selection remains the caller's responsibility.
+// AccountSwitcher loads an account and its transactions for the supplied
+// account identifier. Persisting the selection remains the caller's
+// responsibility.
 type AccountSwitcher func(context.Context, string) (model.Account, []model.Transaction, error)
 
-// TransactionReloader fetches the latest transactions for an account.
+// TransactionReloader fetches the latest transactions for the supplied account
+// identifier.
 type TransactionReloader func(context.Context, string) ([]model.Transaction, error)
 
-// AccountState is the usable application state after an account is removed.
+// AccountState contains the accounts and transactions to display after an
+// account is removed.
 type AccountState struct {
-	Accounts     []model.Account
-	Account      model.Account
+	// Accounts is the updated list of available accounts.
+	Accounts []model.Account
+	// Account is the account that should be active.
+	Account model.Account
+	// Transactions are the transactions belonging to Account.
 	Transactions []model.Transaction
 }
 
-// AccountRemover removes an account and resolves the account that should be active afterwards.
+// AccountRemover removes the account identified by the supplied account
+// identifier and resolves the account that should be active afterwards.
 type AccountRemover func(context.Context, string) (AccountState, error)
 
-// AccountRegistrar registers an API key and returns the refreshed account list.
+// AccountRegistrar registers the supplied API key and returns the refreshed
+// account list and the account that should be active.
 type AccountRegistrar func(context.Context, string) ([]model.Account, model.Account, error)
 
 type tuiModel struct {
