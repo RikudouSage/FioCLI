@@ -10,8 +10,8 @@ SQLCIPHER_CFLAGS := -O2 -fPIC \
 	-DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown
 
 SQLCIPHER_CURRENT_DIR := $(CURDIR)/build/sqlcipher/current
-SQLCIPHER_CURRENT_LIB := $(SQLCIPHER_CURRENT_INSTALL)/lib/libsqlite3.a
 SQLCIPHER_CURRENT_INSTALL := $(SQLCIPHER_CURRENT_DIR)/install
+SQLCIPHER_CURRENT_LIB := $(SQLCIPHER_CURRENT_INSTALL)/lib/libsqlite3.a
 
 
 # ------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ build-current: build-sqlcipher-current generate-go-sqlite3
 		-modfile "$(GO_SQLITE3_MODFILE)" \
 		-tags "$(GO_BUILD_TAGS)" \
 		-o fio \
-		./cmd
+		.
 
 # ------------------------------------------------------------------------------
 # Cleanup
