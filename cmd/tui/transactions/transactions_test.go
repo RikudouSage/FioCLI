@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/shopspring/decimal"
 	"go.chrastecky.dev/fio-api/fio/types"
 	"go.chrastecky.dev/fio-client/fioclient/model"
@@ -80,6 +81,20 @@ func TestListShowsPaymentComment(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Fatalf("list does not contain %q:\n%s", want, view)
 		}
+	}
+}
+
+func TestLocalOnlyTransactionIsPendingAndItalic(t *testing.T) {
+	transaction := testTransaction(t)
+	transaction.LocalOnly = true
+	m := newModel(testAccount(), []model.Transaction{transaction})
+
+	view := m.View()
+	if !strings.Contains(view, "Pending confirmation") {
+		t.Fatalf("pending transaction status is missing:\n%s", view)
+	}
+	if !withPendingStyle(lipgloss.NewStyle(), true).GetItalic() {
+		t.Fatal("pending transaction style is not italic")
 	}
 }
 

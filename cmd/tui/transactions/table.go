@@ -35,6 +35,7 @@ func RenderTable(output io.Writer, txs []model.Transaction, limit int) {
 		"BIC",
 		"Instruction ID",
 		"Payer reference",
+		"Local only",
 	)
 	tbl.WithHeaderFormatter(color.New(color.FgGreen, color.Underline).SprintfFunc())
 	tbl.WithWriter(output)
@@ -60,6 +61,7 @@ func RenderTable(output io.Writer, txs []model.Transaction, limit int) {
 			pointerString(transaction.BIC),
 			pointerInt64(transaction.InstructionID),
 			pointerString(transaction.PayerReference),
+			transaction.LocalOnly,
 		)
 	}
 	tbl.Print()

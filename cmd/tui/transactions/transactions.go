@@ -35,6 +35,7 @@ var (
 	primaryColor = lipgloss.AdaptiveColor{Light: "#075E54", Dark: "#5EE1B7"}
 	mutedColor   = lipgloss.AdaptiveColor{Light: "#667085", Dark: "#8B95A5"}
 	faintColor   = lipgloss.AdaptiveColor{Light: "#98A2B3", Dark: "#667085"}
+	pendingColor = lipgloss.AdaptiveColor{Light: "#9A6700", Dark: "#E3B341"}
 	inColor      = lipgloss.AdaptiveColor{Light: "#08783E", Dark: "#57D68D"}
 	outColor     = lipgloss.AdaptiveColor{Light: "#B42318", Dark: "#FF7B72"}
 
@@ -94,28 +95,39 @@ func (receiver transactionDelegate) Render(writer io.Writer, transactionList lis
 	if index == transactionList.Index() && transactionList.FilterState() != list.Filtering {
 		titleStyle, descriptionStyle = receiver.selectedTitle, receiver.selectedDesc
 	}
+	pending := transaction.transaction.LocalOnly
+	titleStyle = withPendingStyle(titleStyle, pending)
+	descriptionStyle = withPendingStyle(descriptionStyle, pending)
 
 	contentWidth := max(transactionList.Width()-titleStyle.GetHorizontalFrameSize(), 1)
 	amount := formatAmount(transaction.transaction)
 	nameWidth := max(contentWidth-lipgloss.Width(amount)-2, 1)
 	name := ansi.Truncate(transaction.displayName(), nameWidth, "…")
 	space := strings.Repeat(" ", max(contentWidth-lipgloss.Width(name)-lipgloss.Width(amount), 1))
-	amountStyle := lipgloss.NewStyle().Foreground(outColor)
+	amountStyle := lipgloss.NewStyle().Foreground(outColor).Italic(pending)
 	if transaction.transaction.Amount.IsPositive() {
 		amountStyle = amountStyle.Foreground(inColor)
 	}
 	title := name + space + amountStyle.Render(amount)
-	metadata := lipgloss.NewStyle().Foreground(mutedColor).Render(transaction.metadata())
+	metadata := lipgloss.NewStyle().Foreground(mutedColor).Italic(pending).Render(transaction.metadata())
 	if paymentType := transaction.paymentType(); paymentType != "" {
-		metadata += lipgloss.NewStyle().Foreground(faintColor).Render("  •  " + paymentType)
+		metadata += lipgloss.NewStyle().Foreground(faintColor).Italic(pending).Render("  •  " + paymentType)
 	}
 	description := metadata
 	if comment := transaction.comment(); comment != "" {
-		description = lipgloss.NewStyle().Bold(true).Foreground(primaryColor).Render(comment) +
-			lipgloss.NewStyle().Foreground(mutedColor).Render("  •  ") + metadata
+		description = lipgloss.NewStyle().Bold(true).Italic(pending).Foreground(primaryColor).Render(comment) +
+			lipgloss.NewStyle().Foreground(mutedColor).Italic(pending).Render("  •  ") + metadata
+	}
+	if pending {
+		description = lipgloss.NewStyle().Bold(true).Italic(true).Foreground(pendingColor).Render("Pending confirmation") +
+			lipgloss.NewStyle().Foreground(mutedColor).Italic(true).Render("  •  ") + description
 	}
 	description = ansi.Truncate(description, contentWidth, "…")
 	fmt.Fprintf(writer, "%s\n%s", titleStyle.Render(title), descriptionStyle.Render(description))
+}
+
+func withPendingStyle(style lipgloss.Style, pending bool) lipgloss.Style {
+	return style.Italic(pending)
 }
 
 func (receiver transactionItem) displayName() string {
@@ -143,7 +155,10 @@ func (receiver transactionItem) Description() string {
 		description += "  •  " + paymentType
 	}
 	if comment := receiver.comment(); comment != "" {
-		return comment + "  •  " + description
+		description = comment + "  •  " + description
+	}
+	if receiver.transaction.LocalOnly {
+		return "Pending confirmation  •  " + description
 	}
 	return description
 }
@@ -177,6 +192,7 @@ func (receiver transactionItem) FilterValue() string {
 		receiver.transaction.TransactionType.String(),
 		pointerString(receiver.transaction.Comment),
 		pointerString(receiver.transaction.VariableSymbol),
+		map[bool]string{true: "pending confirmation", false: ""}[receiver.transaction.LocalOnly],
 	}, " ")
 }
 
@@ -361,6 +377,7 @@ func (receiver tuiModel) detailContent() string {
 		{"Comment", pointerString(t.Comment)},
 		{"Additional info", pointerString(t.AdditionalInfo)},
 		{"Payer reference", pointerString(t.PayerReference)},
+		{"Status", map[bool]string{true: "Pending confirmation", false: "Confirmed"}[t.LocalOnly]},
 		{"Instruction ID", pointerInt64(t.InstructionID)},
 		{"Transaction ID", strconv.FormatInt(t.ID, 10)},
 		{"Account", t.AccountNumber},
