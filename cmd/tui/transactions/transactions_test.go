@@ -84,6 +84,31 @@ func TestListShowsPaymentComment(t *testing.T) {
 	}
 }
 
+func TestListSeparatesTransactionsByMonth(t *testing.T) {
+	september := testTransaction(t)
+	august := testTransaction(t)
+	august.ID = 43
+	august.Date = types.TimezonedDate(time.Date(2026, time.August, 31, 0, 0, 0, 0, time.FixedZone("CEST", 2*60*60)))
+	m := newModel(testAccount(), []model.Transaction{september, august})
+
+	view := m.View()
+	for _, month := range []string{"SEPTEMBER 2026", "AUGUST 2026"} {
+		if !strings.Contains(view, month) {
+			t.Errorf("list does not contain month heading %q:\n%s", month, view)
+		}
+	}
+	if count := strings.Count(view, "Outgoing −125.50 CZK"); count < 2 {
+		t.Errorf("month headings do not contain outgoing totals for both months:\n%s", view)
+	}
+}
+
+func TestListMarksEndOfTransactions(t *testing.T) {
+	m := newModel(testAccount(), []model.Transaction{testTransaction(t)})
+	if view := m.View(); !strings.Contains(view, "No more transactions") {
+		t.Fatalf("list does not contain its end marker:\n%s", view)
+	}
+}
+
 func TestLocalOnlyTransactionIsPendingAndItalic(t *testing.T) {
 	transaction := testTransaction(t)
 	transaction.LocalOnly = true

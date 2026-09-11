@@ -79,8 +79,8 @@ func newTransactionDelegate() transactionDelegate {
 	}
 }
 
-func (receiver transactionDelegate) Height() int  { return 2 }
-func (receiver transactionDelegate) Spacing() int { return 1 }
+func (receiver transactionDelegate) Height() int  { return 7 }
+func (receiver transactionDelegate) Spacing() int { return 0 }
 func (receiver transactionDelegate) Update(tea.Msg, *list.Model) tea.Cmd {
 	return nil
 }
@@ -100,6 +100,12 @@ func (receiver transactionDelegate) Render(writer io.Writer, transactionList lis
 	descriptionStyle = withPendingStyle(descriptionStyle, pending)
 
 	contentWidth := max(transactionList.Width()-titleStyle.GetHorizontalFrameSize(), 1)
+	monthHeader := ""
+	if isMonthStart(transactionList, index, transaction.transaction) {
+		month := transaction.transaction.Date.AsTime().Format("January 2006")
+		incoming, outgoing, currency := monthTotals(transactionList, transaction.transaction)
+		monthHeader = renderMonthHeader(month, incoming, outgoing, currency, transactionList.Width())
+	}
 	amount := formatAmount(transaction.transaction)
 	nameWidth := max(contentWidth-lipgloss.Width(amount)-2, 1)
 	name := ansi.Truncate(transaction.displayName(), nameWidth, "…")
@@ -123,7 +129,74 @@ func (receiver transactionDelegate) Render(writer io.Writer, transactionList lis
 			lipgloss.NewStyle().Foreground(mutedColor).Italic(true).Render("  •  ") + description
 	}
 	description = ansi.Truncate(description, contentWidth, "…")
-	fmt.Fprintf(writer, "%s\n%s", titleStyle.Render(title), descriptionStyle.Render(description))
+	if monthHeader != "" {
+		fmt.Fprintf(writer, "%s\n%s\n%s", monthHeader, titleStyle.Render(title), descriptionStyle.Render(description))
+		if index == len(transactionList.VisibleItems())-1 {
+			fmt.Fprintf(writer, "\n%s", endOfTransactions(transactionList.Width()))
+		}
+		return
+	}
+	fmt.Fprintf(writer, "\n%s\n%s", titleStyle.Render(title), descriptionStyle.Render(description))
+	if index == len(transactionList.VisibleItems())-1 {
+		fmt.Fprintf(writer, "\n%s", endOfTransactions(transactionList.Width()))
+	}
+}
+
+func endOfTransactions(width int) string {
+	message := "No more transactions"
+	return lipgloss.NewStyle().Foreground(faintColor).Render(
+		lipgloss.PlaceHorizontal(max(width, 1), lipgloss.Center, message),
+	)
+}
+
+func renderMonthHeader(month, incoming, outgoing, currency string, width int) string {
+	indent := "  "
+	title := lipgloss.NewStyle().Bold(true).Foreground(primaryColor).Render(strings.ToUpper(month))
+	label := lipgloss.NewStyle().Foreground(mutedColor)
+	incomingValue := lipgloss.NewStyle().Bold(true).Foreground(inColor).Render("+" + incoming + " " + currency)
+	outgoingValue := lipgloss.NewStyle().Bold(true).Foreground(outColor).Render("−" + outgoing + " " + currency)
+	stats := label.Render("Incoming ") + incomingValue + label.Render("    Outgoing ") + outgoingValue
+	divider := lipgloss.NewStyle().Foreground(faintColor).Render(strings.Repeat("─", max(width-len(indent), 1)))
+	return "\n" + indent + title + "\n" + indent + stats + "\n" + indent + divider
+}
+
+func monthTotals(transactionList list.Model, transaction model.Transaction) (string, string, string) {
+	month := transaction.Date.AsTime()
+	currency := transaction.Currency
+	incoming, outgoing := decimal.Zero, decimal.Zero
+	for _, item := range transactionList.Items() {
+		candidate, ok := item.(transactionItem)
+		if !ok || candidate.transaction.Currency != currency {
+			continue
+		}
+		date := candidate.transaction.Date.AsTime()
+		if date.Year() != month.Year() || date.Month() != month.Month() {
+			continue
+		}
+		if candidate.transaction.Amount.IsPositive() {
+			incoming = incoming.Add(candidate.transaction.Amount)
+		} else {
+			outgoing = outgoing.Add(candidate.transaction.Amount.Abs())
+		}
+	}
+	return incoming.StringFixed(2), outgoing.StringFixed(2), currency
+}
+
+func isMonthStart(transactionList list.Model, index int, transaction model.Transaction) bool {
+	start, _ := transactionList.Paginator.GetSliceBounds(len(transactionList.VisibleItems()))
+	if index == start || index == 0 {
+		return true
+	}
+	items := transactionList.VisibleItems()
+	if index > len(items)-1 {
+		return false
+	}
+	previous, ok := items[index-1].(transactionItem)
+	if !ok {
+		return true
+	}
+	date, previousDate := transaction.Date.AsTime(), previous.transaction.Date.AsTime()
+	return date.Year() != previousDate.Year() || date.Month() != previousDate.Month()
 }
 
 func withPendingStyle(style lipgloss.Style, pending bool) lipgloss.Style {
