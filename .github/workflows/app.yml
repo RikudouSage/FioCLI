@@ -39,7 +39,6 @@ jobs:
         with:
           name: fio-linux-amd64
           path: dist/
-          archive: false
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
