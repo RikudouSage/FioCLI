@@ -30,6 +30,7 @@ Build a native package after entering the development shell:
 nix develop
 make deb  # writes out/fio-cli_<version>_<architecture>.deb
 make rpm  # writes out/fio-cli-<version>-1.<architecture>.rpm
+make appimage  # writes out/fio-cli_<version>_<architecture>.AppImage
 ```
 
 Both targets build for the current system and build the binary first. Package

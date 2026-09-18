@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Fio CLI
+Comment=Command-line client for Fio bank accounts
+Exec=fio
+Icon=fio-cli
+Categories=Office;
+Terminal=true

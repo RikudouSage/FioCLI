@@ -8,6 +8,10 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed -e 's/
 PACKAGE_BUILD_DIR := $(CURDIR)/build/package
 DEB_ROOT := $(PACKAGE_BUILD_DIR)/deb
 RPM_TOPDIR := $(PACKAGE_BUILD_DIR)/rpm
+APPIMAGE_DIR := $(PACKAGE_BUILD_DIR)/AppDir
+APPIMAGE_ARCH := $(shell uname -m)
+APPIMAGETOOL := $(PACKAGE_BUILD_DIR)/tools/appimagetool-$(APPIMAGE_ARCH).AppImage
+APPIMAGETOOL_URL ?= https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$(APPIMAGE_ARCH).AppImage
 OUT_DIR := $(CURDIR)/out
 # Override the detected loader path for an unusual libc or filesystem layout.
 ELF_INTERPRETER ?=
@@ -107,6 +111,27 @@ rpm: build-current
 
 build-rpm: rpm
 
+$(APPIMAGETOOL):
+	mkdir -p $(dir $@)
+	curl --fail --location --output $@ $(APPIMAGETOOL_URL)
+	chmod 755 $@
+
+appimage: build-current $(APPIMAGETOOL)
+	rm -rf $(APPIMAGE_DIR)
+	mkdir -p $(APPIMAGE_DIR)/usr/bin $(APPIMAGE_DIR)/usr/lib $(APPIMAGE_DIR)/usr/share/metainfo
+	install -m 755 fio $(APPIMAGE_DIR)/usr/bin/fio
+	install -m 755 packaging/appimage/AppRun $(APPIMAGE_DIR)/AppRun
+	install -m 644 packaging/appimage/fio-cli.desktop $(APPIMAGE_DIR)/fio-cli.desktop
+	install -m 644 packaging/appimage/fio-cli.svg $(APPIMAGE_DIR)/fio-cli.svg
+	install -m 644 packaging/appimage/dev.chrastecky.fio-cli.metainfo.xml $(APPIMAGE_DIR)/usr/share/metainfo/dev.chrastecky.fio-cli.metainfo.xml
+	cp -L "$$OPENSSL_CURRENT_LIB/libcrypto.so.3" $(APPIMAGE_DIR)/usr/lib/
+	patchelf --set-rpath '$$ORIGIN/../lib' $(APPIMAGE_DIR)/usr/bin/fio
+	mkdir -p $(OUT_DIR)
+	ARCH="$(APPIMAGE_ARCH)" APPIMAGE_EXTRACT_AND_RUN=1 $(APPIMAGETOOL) \
+		--no-appstream $(APPIMAGE_DIR) $(OUT_DIR)/$(PACKAGE_NAME)_$(VERSION)_$(APPIMAGE_ARCH).AppImage
+
+build-appimage: appimage
+
 # ------------------------------------------------------------------------------
 # Cleanup
 # ------------------------------------------------------------------------------
@@ -127,5 +152,7 @@ clean:
 	build-deb \
 	rpm \
 	build-rpm \
+	appimage \
+	build-appimage \
 	clean-sqlcipher \
 	clean

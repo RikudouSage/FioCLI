@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="console-application">
+  <id>dev.chrastecky.fio-cli</id>
+  <name>Fio CLI</name>
+  <summary>Command-line client for Fio bank accounts</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>Manage Fio bank accounts, encrypted transaction data, synchronization, and domestic payments.</p>
+  </description>
+  <launchable type="desktop-id">fio-cli.desktop</launchable>
+  <provides>
+    <binary>fio</binary>
+  </provides>
+  <url type="homepage">https://github.com/RikudouSage/FioCLI</url>
+  <url type="contact">https://github.com/RikudouSage/FioCLI/issues</url>
+  <developer id="dev.chrastecky">
+    <name>Dominik Chrastecky</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+</component>

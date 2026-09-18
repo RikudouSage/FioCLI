@@ -31,6 +31,8 @@
               pkgs.gnumake
               pkgs.dpkg
               pkgs.rpm
+              pkgs.curl
+              pkgs.cacert
 
               pkgs.gcc
               pkgs.pkg-config
@@ -46,6 +48,7 @@
 
               export SQLCIPHER_TCLSH=${pkgs.tcl}/bin/tclsh
               export SQLCIPHER_TCL_CONFIG_DIR=${pkgs.tcl}/lib
+              export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
 
               echo "Using go config:"
               echo "  GOROOT   = $(go env GOROOT)"
