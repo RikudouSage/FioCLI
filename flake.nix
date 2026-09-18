@@ -29,6 +29,8 @@
               pkgs.patchelf
               pkgs.revive
               pkgs.gnumake
+              pkgs.dpkg
+              pkgs.rpm
 
               pkgs.gcc
               pkgs.pkg-config

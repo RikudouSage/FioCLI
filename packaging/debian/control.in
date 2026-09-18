@@ -1,0 +1,10 @@
+Package: fio-cli
+Version: @VERSION@
+Section: utils
+Priority: optional
+Architecture: @ARCH@
+Maintainer: Dominik Chrastecky <dominik@chrastecky.cz>
+Depends: libc6 (>= 2.38), libssl3 (>= 3.0.0)
+Description: Command-line client for Fio bank accounts
+ Fio CLI manages Fio bank accounts, locally encrypted transaction data,
+ transaction synchronization, and domestic payments.

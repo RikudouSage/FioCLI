@@ -17,6 +17,25 @@ make              # builds ./fio
 FIO_ENCRYPTION_PASSWORD='your-password' ./fio accounts
 ```
 
+The Linux binary is built for the host architecture and uses its standard
+system dynamic loader rather than a Nix-store loader. For an unusual libc or
+filesystem layout, provide its loader path explicitly, for example:
+`make ELF_INTERPRETER=/custom/lib/ld-linux-aarch64.so.1`.
+
+## Linux packages
+
+Build a native package after entering the development shell:
+
+```sh
+nix develop
+make deb  # writes out/fio-cli_<version>_<architecture>.deb
+make rpm  # writes out/fio-cli-<version>-1.<architecture>.rpm
+```
+
+Both targets build for the current system and build the binary first. Package
+versions default to the current Git tag (or Git description) and can be overridden, for example:
+`make deb VERSION=1.2.3`.
+
 The default database is stored at the platform's user config directory under `fio-cli/fio-cli.db`. It can be changed with `--db`. Configuration is read from `$HOME/.fio.yaml` by default, and command-line flags can also be provided through `FIO_` environment variables.
 
 ## Common commands

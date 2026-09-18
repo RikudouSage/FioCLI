@@ -1,0 +1,31 @@
+Name:           fio-cli
+Version:        @VERSION@
+Release:        1%{?dist}
+Summary:        Command-line client for Fio bank accounts
+
+License:        MIT
+URL:            https://github.com/RikudouSage/FioCLI
+Source0:        fio
+Source1:        README.md
+Source2:        LICENSE
+Requires:       openssl
+
+%description
+Fio CLI manages Fio bank accounts, locally encrypted transaction data,
+transaction synchronization, and domestic payments.
+
+%prep
+
+%build
+
+%install
+install -D -m 0755 %{SOURCE0} %{buildroot}%{_bindir}/fio
+install -D -m 0644 %{SOURCE1} %{buildroot}%{_docdir}/%{name}/README.md
+install -D -m 0644 %{SOURCE2} %{buildroot}%{_licensedir}/%{name}/LICENSE
+
+%files
+%{_bindir}/fio
+%doc %{_docdir}/%{name}/README.md
+%license %{_licensedir}/%{name}/LICENSE
+
+%changelog
