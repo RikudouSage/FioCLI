@@ -21,13 +21,13 @@ transaction synchronization, and domestic payments.
 
 %install
 install -D -m 0755 %{SOURCE0} %{buildroot}%{_bindir}/fio
-install -D -m 0644 %{SOURCE3} %{buildroot}%{_datadir}/bash-completion/completions/fio
+install -D -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/bash_completion.d/fio-cli
 install -D -m 0644 %{SOURCE1} %{buildroot}%{_docdir}/%{name}/README.md
 install -D -m 0644 %{SOURCE2} %{buildroot}%{_licensedir}/%{name}/LICENSE
 
 %files
 %{_bindir}/fio
-%{_datadir}/bash-completion/completions/fio
+%{_sysconfdir}/bash_completion.d/fio-cli
 %doc %{_docdir}/%{name}/README.md
 %license %{_licensedir}/%{name}/LICENSE
 

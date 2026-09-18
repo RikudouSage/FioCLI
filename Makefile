@@ -85,11 +85,11 @@ build-current: build-sqlcipher-current generate-go-sqlite3
 deb: build-current
 	rm -rf $(DEB_ROOT)
 	mkdir -p $(DEB_ROOT)/DEBIAN $(DEB_ROOT)/usr/bin $(DEB_ROOT)/usr/share/doc/$(PACKAGE_NAME) \
-		$(DEB_ROOT)/usr/share/bash-completion/completions
+		$(DEB_ROOT)/etc/bash_completion.d
 	install -m 755 fio $(DEB_ROOT)/usr/bin/fio
 	rm -f "$(COMPLETION_DB)" "$(COMPLETION_DB)-shm" "$(COMPLETION_DB)-wal"
 	FIO_ENCRYPTION_PASSWORD=fio-completion ./fio --db "$(COMPLETION_DB)" completion bash > \
-		$(DEB_ROOT)/usr/share/bash-completion/completions/fio
+		$(DEB_ROOT)/etc/bash_completion.d/fio-cli
 	install -m 644 README.md $(DEB_ROOT)/usr/share/doc/$(PACKAGE_NAME)/README.md
 	install -m 644 LICENSE $(DEB_ROOT)/usr/share/doc/$(PACKAGE_NAME)/copyright
 	sed -e 's/@VERSION@/$(VERSION)/g' -e "s/@ARCH@/$$(dpkg --print-architecture)/g" \
