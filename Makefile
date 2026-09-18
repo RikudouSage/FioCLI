@@ -6,6 +6,7 @@ GO_SQLITE3_MODFILE := $(CURDIR)/build/go-sqlite3-sqlcipher.mod
 PACKAGE_NAME := fio-cli
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed -e 's/^v//' -e 's/-/./g' -e 's/[^[:alnum:].]/_/g')
 PACKAGE_BUILD_DIR := $(CURDIR)/build/package
+COMPLETION_DB := $(PACKAGE_BUILD_DIR)/completion/fio-cli.db
 DEB_ROOT := $(PACKAGE_BUILD_DIR)/deb
 RPM_TOPDIR := $(PACKAGE_BUILD_DIR)/rpm
 APPIMAGE_DIR := $(PACKAGE_BUILD_DIR)/AppDir
@@ -83,8 +84,12 @@ build-current: build-sqlcipher-current generate-go-sqlite3
 
 deb: build-current
 	rm -rf $(DEB_ROOT)
-	mkdir -p $(DEB_ROOT)/DEBIAN $(DEB_ROOT)/usr/bin $(DEB_ROOT)/usr/share/doc/$(PACKAGE_NAME)
+	mkdir -p $(DEB_ROOT)/DEBIAN $(DEB_ROOT)/usr/bin $(DEB_ROOT)/usr/share/doc/$(PACKAGE_NAME) \
+		$(DEB_ROOT)/usr/share/bash-completion/completions
 	install -m 755 fio $(DEB_ROOT)/usr/bin/fio
+	rm -f "$(COMPLETION_DB)" "$(COMPLETION_DB)-shm" "$(COMPLETION_DB)-wal"
+	FIO_ENCRYPTION_PASSWORD=fio-completion ./fio --db "$(COMPLETION_DB)" completion bash > \
+		$(DEB_ROOT)/usr/share/bash-completion/completions/fio
 	install -m 644 README.md $(DEB_ROOT)/usr/share/doc/$(PACKAGE_NAME)/README.md
 	install -m 644 LICENSE $(DEB_ROOT)/usr/share/doc/$(PACKAGE_NAME)/copyright
 	sed -e 's/@VERSION@/$(VERSION)/g' -e "s/@ARCH@/$$(dpkg --print-architecture)/g" \
@@ -100,6 +105,9 @@ rpm: build-current
 	mkdir -p $(RPM_TOPDIR)/BUILD $(RPM_TOPDIR)/BUILDROOT $(RPM_TOPDIR)/RPMS \
 		$(RPM_TOPDIR)/SOURCES $(RPM_TOPDIR)/SPECS $(RPM_TOPDIR)/SRPMS
 	install -m 755 fio $(RPM_TOPDIR)/SOURCES/fio
+	rm -f "$(COMPLETION_DB)" "$(COMPLETION_DB)-shm" "$(COMPLETION_DB)-wal"
+	FIO_ENCRYPTION_PASSWORD=fio-completion ./fio --db "$(COMPLETION_DB)" completion bash > \
+		$(RPM_TOPDIR)/SOURCES/fio.bash
 	install -m 644 README.md $(RPM_TOPDIR)/SOURCES/README.md
 	install -m 644 LICENSE $(RPM_TOPDIR)/SOURCES/LICENSE
 	sed -e 's/@VERSION@/$(VERSION)/g' \

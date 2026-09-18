@@ -76,7 +76,7 @@ func initializeDb(requireDB bool, stderr io.Writer) {
 		return
 	}
 
-	dbPath := viper.GetString("db")
+	dbPath := viper.GetString("database")
 	password := viper.GetString("encryption-password")
 	if dbPath == "" {
 		cfgDir, err := os.UserConfigDir()
